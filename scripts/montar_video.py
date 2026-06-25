@@ -127,7 +127,7 @@ def montar_video(
     output_path = os.path.join(output_dir, "video_final.mp4")
 
     # Estilo das legendas: fonte limpa (Arial), menor, com borda fina e sombra suave
-    # Alignment=5 (Centro da tela). Sem margens laterais para não quebrar o centro.
+    # Alignment=10 (Centro da tela). Sem margens laterais para não quebrar o centro.
     subtitle_style = ",".join([
         "Fontname=Arial",
         "FontSize=35",
@@ -137,7 +137,7 @@ def montar_video(
         "BorderStyle=1",
         "Outline=1.5",
         "Shadow=1.5",
-        "Alignment=5"
+        "Alignment=10"
     ])
 
     srt_escaped = _escape_srt_path(legendas_srt)

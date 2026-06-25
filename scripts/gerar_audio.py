@@ -25,8 +25,8 @@ PALAVRAS_POR_LEGENDA = 5      # Palavras por bloco de legenda para não estourar
 # ─────────────────────────────────────────────────────────────────────────────
 async def _gerar_async(texto: str, output_dir: str) -> tuple[str, str]:
     """Gera MP3 + SRT de forma assíncrona."""
-    # Adicionando um ritmo mais lento (-15%) para a oração não ficar corrida
-    communicate = edge_tts.Communicate(texto, VOZ, rate="-15%")
+    # Adicionando um ritmo mais lento (-20%) e tom mais grave (-10Hz) para a oração ficar solene
+    communicate = edge_tts.Communicate(texto, VOZ, rate="-20%", pitch="-10Hz")
 
     audio_path = os.path.join(output_dir, "audio.mp3")
     srt_path   = os.path.join(output_dir, "legendas.srt")
