@@ -89,6 +89,10 @@ async def _gerar_async(texto: str, output_dir: str) -> tuple[str, str]:
 
     # Gerar SRT agrupado
     srt_content = _agrupar_palavras_srt(word_boundaries, PALAVRAS_POR_LEGENDA)
+    if not srt_content.strip():
+        # Fallback para evitar crash do FFmpeg caso a API não retorne timestamps
+        srt_content = "1\n00:00:00,000 --> 00:00:01,000\n \n"
+
     with open(srt_path, "w", encoding="utf-8") as f:
         f.write(srt_content)
 
