@@ -87,17 +87,32 @@ async def _gerar_async(texto: str, output_dir: str) -> tuple[str, str]:
                     "duration": chunk["duration"],  # ticks de 100ns
                 })
 
-    # Gerar SRT agrupado
-    srt_content = _agrupar_palavras_srt(word_boundaries, PALAVRAS_POR_LEGENDA)
-    if not srt_content.strip():
-        # Fallback para evitar crash do FFmpeg caso a API não retorne timestamps
-        srt_content = "1\n00:00:00,000 --> 00:00:01,000\n \n"
+    from groq import Groq
+    
+    # 2. Gerar legendas SRT precisas usando Groq Whisper (muito mais confiável que word_boundaries do edge-tts)
+    print("🎙️  Gerando legendas com Groq Whisper...")
+    cliente_groq = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+    
+    try:
+        with open(audio_path, "rb") as f:
+            transcricao = cliente_groq.audio.transcriptions.create(
+                file=("audio.mp3", f.read()),
+                model="whisper-large-v3-turbo",
+                response_format="srt",
+                language="pt"
+            )
+        srt_content = transcricao
+        if not srt_content.strip():
+            raise ValueError("Groq retornou legenda vazia")
+    except Exception as e:
+        print(f"⚠️ Erro ao transcrever com Groq: {e}. Usando fallback.")
+        srt_content = "1\n00:00:00,000 --> 00:00:05,000\n \n"
 
     with open(srt_path, "w", encoding="utf-8") as f:
         f.write(srt_content)
 
     print(f"✅ Áudio gerado : {audio_path}")
-    print(f"✅ Legendas SRT : {srt_path}  ({len(word_boundaries)} palavras)")
+    print(f"✅ Legendas SRT : {srt_path}")
     return audio_path, srt_path
 
 
