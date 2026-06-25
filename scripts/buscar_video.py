@@ -176,6 +176,7 @@ def _processar_clip(input_path: str, output_path: str, duracao_video: int):
         "-vf", f"scale=1920:1080:force_original_aspect_ratio=increase,"
                f"crop=1920:1080,"
                f"hflip,"
+               f"fps=30,"
                f"setpts={velocidade_pts:.4f}*PTS",
         "-an",                        # Sem áudio (usaremos o TTS)
         "-map_metadata", "-1",        # Remove todos os metadados
