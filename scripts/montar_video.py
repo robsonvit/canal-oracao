@@ -130,7 +130,7 @@ def montar_video(
     # Alignment=5 no padrão ASS = centro absoluto (h e v)
     subtitle_style = ",".join([
         "Fontname=DejaVu Serif",
-        "FontSize=60",
+        "FontSize=45",
         "Bold=1",
         "PrimaryColour=&H00FFFFFF",   # Branco
         "OutlineColour=&H00000000",   # Preto

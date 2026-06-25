@@ -16,52 +16,8 @@ import edge_tts
 # ─────────────────────────────────────────────────────────────────────────────
 # Configurações da voz
 # ─────────────────────────────────────────────────────────────────────────────
-VOZ          = "pt-BR-AntonioNeural"   # Voz masculina natural do Brasil
-PITCH        = "-10Hz"                 # Grave (mais profundo)
-RATE         = "-8%"                   # Ritmo levemente mais lento (solene)
-PALAVRAS_POR_LEGENDA = 7              # Palavras por bloco de legenda
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Helpers de formatação SRT
-# ─────────────────────────────────────────────────────────────────────────────
-def _ticks_para_hms(ticks: int) -> str:
-    """Converte ticks de 100ns → HH:MM:SS,mmm (formato SRT)."""
-    ms_total = ticks // 10_000
-    horas    = ms_total // 3_600_000
-    ms_total %= 3_600_000
-    minutos  = ms_total // 60_000
-    ms_total %= 60_000
-    segundos = ms_total // 1_000
-    ms       = ms_total % 1_000
-    return f"{horas:02d}:{minutos:02d}:{segundos:02d},{ms:03d}"
-
-
-def _agrupar_palavras_srt(word_boundaries: list, n: int = PALAVRAS_POR_LEGENDA) -> str:
-    """
-    Agrupa word boundaries em blocos de `n` palavras e gera conteúdo SRT.
-    word_boundaries: lista de dicts com 'offset', 'duration', 'text'
-    """
-    if not word_boundaries:
-        return ""
-
-    linhas_srt = []
-    idx = 1
-
-    for i in range(0, len(word_boundaries), n):
-        grupo = word_boundaries[i: i + n]
-        inicio_ticks = grupo[0]["offset"]
-        fim_ticks    = grupo[-1]["offset"] + grupo[-1]["duration"]
-        texto        = " ".join(w["text"] for w in grupo)
-
-        linhas_srt.append(
-            f"{idx}\n"
-            f"{_ticks_para_hms(inicio_ticks)} --> {_ticks_para_hms(fim_ticks)}\n"
-            f"{texto}\n"
-        )
-        idx += 1
-
-    return "\n".join(linhas_srt)
+VOZ = "pt-BR-AntonioNeural"   # Voz masculina natural do Brasil (sem distorções de velocidade)
+PALAVRAS_POR_LEGENDA = 5      # Palavras por bloco de legenda para não estourar a tela
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -69,23 +25,16 @@ def _agrupar_palavras_srt(word_boundaries: list, n: int = PALAVRAS_POR_LEGENDA) 
 # ─────────────────────────────────────────────────────────────────────────────
 async def _gerar_async(texto: str, output_dir: str) -> tuple[str, str]:
     """Gera MP3 + SRT de forma assíncrona."""
-    communicate = edge_tts.Communicate(texto, VOZ, pitch=PITCH, rate=RATE)
+    # Usando a voz pura, sem alterar pitch ou rate, para soar 100% natural
+    communicate = edge_tts.Communicate(texto, VOZ)
 
     audio_path = os.path.join(output_dir, "audio.mp3")
     srt_path   = os.path.join(output_dir, "legendas.srt")
-
-    word_boundaries = []
 
     with open(audio_path, "wb") as audio_file:
         async for chunk in communicate.stream():
             if chunk["type"] == "audio":
                 audio_file.write(chunk["data"])
-            elif chunk["type"] == "WordBoundary":
-                word_boundaries.append({
-                    "text":     chunk["text"],
-                    "offset":   chunk["offset"],    # ticks de 100ns
-                    "duration": chunk["duration"],  # ticks de 100ns
-                })
 
     def _segundos_para_hms(segundos: float) -> str:
         horas = int(segundos // 3600)
@@ -113,7 +62,8 @@ async def _gerar_async(texto: str, output_dir: str) -> tuple[str, str]:
         # No SDK da Groq, transcricao pode ser dict ou objeto
         segmentos = transcricao.get("segments", []) if isinstance(transcricao, dict) else transcricao.segments
         
-        for idx, segment in enumerate(segmentos, 1):
+        idx = 1
+        for segment in segmentos:
             try:
                 start = segment.start
                 end = segment.end
@@ -123,9 +73,26 @@ async def _gerar_async(texto: str, output_dir: str) -> tuple[str, str]:
                 end = segment["end"]
                 text = segment["text"]
                 
-            inicio = _segundos_para_hms(start)
-            fim = _segundos_para_hms(end)
-            linhas_srt.append(f"{idx}\n{inicio} --> {fim}\n{text.strip()}\n")
+            palavras = text.strip().split()
+            if not palavras:
+                continue
+                
+            # Interpolação linear de tempo para dividir frases longas em blocos de X palavras
+            chunk_size = PALAVRAS_POR_LEGENDA
+            duracao_total = end - start
+            tempo_por_palavra = duracao_total / len(palavras)
+            
+            for i in range(0, len(palavras), chunk_size):
+                chunk = palavras[i : i + chunk_size]
+                chunk_text = " ".join(chunk)
+                
+                chunk_start = start + (i * tempo_por_palavra)
+                chunk_end = start + ((i + len(chunk)) * tempo_por_palavra)
+                
+                inicio = _segundos_para_hms(chunk_start)
+                fim = _segundos_para_hms(chunk_end)
+                linhas_srt.append(f"{idx}\n{inicio} --> {fim}\n{chunk_text}\n")
+                idx += 1
             
         srt_content = "\n".join(linhas_srt)
         
