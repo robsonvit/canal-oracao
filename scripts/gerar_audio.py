@@ -87,6 +87,13 @@ async def _gerar_async(texto: str, output_dir: str) -> tuple[str, str]:
                     "duration": chunk["duration"],  # ticks de 100ns
                 })
 
+    def _segundos_para_hms(segundos: float) -> str:
+        horas = int(segundos // 3600)
+        minutos = int((segundos % 3600) // 60)
+        segs = int(segundos % 60)
+        ms = int(round((segundos - int(segundos)) * 1000))
+        return f"{horas:02d}:{minutos:02d}:{segs:02d},{ms:03d}"
+
     from groq import Groq
     
     # 2. Gerar legendas SRT precisas usando Groq Whisper (muito mais confiável que word_boundaries do edge-tts)
@@ -98,10 +105,30 @@ async def _gerar_async(texto: str, output_dir: str) -> tuple[str, str]:
             transcricao = cliente_groq.audio.transcriptions.create(
                 file=("audio.mp3", f.read()),
                 model="whisper-large-v3-turbo",
-                response_format="srt",
+                response_format="verbose_json",
                 language="pt"
             )
-        srt_content = transcricao
+            
+        linhas_srt = []
+        # No SDK da Groq, transcricao pode ser dict ou objeto
+        segmentos = transcricao.get("segments", []) if isinstance(transcricao, dict) else transcricao.segments
+        
+        for idx, segment in enumerate(segmentos, 1):
+            try:
+                start = segment.start
+                end = segment.end
+                text = segment.text
+            except AttributeError:
+                start = segment["start"]
+                end = segment["end"]
+                text = segment["text"]
+                
+            inicio = _segundos_para_hms(start)
+            fim = _segundos_para_hms(end)
+            linhas_srt.append(f"{idx}\n{inicio} --> {fim}\n{text.strip()}\n")
+            
+        srt_content = "\n".join(linhas_srt)
+        
         if not srt_content.strip():
             raise ValueError("Groq retornou legenda vazia")
     except Exception as e:
