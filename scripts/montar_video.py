@@ -64,8 +64,7 @@ def _criar_concat_list(clips: list[str], lista_path: str):
     """Cria o arquivo de lista .txt para o demuxer concat do FFmpeg."""
     with open(lista_path, "w", encoding="utf-8") as f:
         for clip in clips:
-            # FFmpeg no Linux exige / e não backslash
-            caminho = clip.replace("\\", "/")
+            caminho = os.path.abspath(clip).replace("\\", "/")
             f.write(f"file '{caminho}'\n")
 
 
