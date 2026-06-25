@@ -126,21 +126,18 @@ def montar_video(
     # ── Passo 2: Montar vídeo final com loop + áudio + legendas ──────────────
     output_path = os.path.join(output_dir, "video_final.mp4")
 
-    # Estilo das legendas: fonte serif, branca, borda preta, CENTRO DA TELA
-    # Alignment=5 no padrão ASS = centro absoluto (h e v)
+    # Estilo das legendas: fonte limpa (Arial), menor, com borda fina e sombra suave
+    # Alignment=5 (Centro da tela). Sem margens laterais para não quebrar o centro.
     subtitle_style = ",".join([
-        "Fontname=DejaVu Serif",
-        "FontSize=45",
-        "Bold=1",
-        "PrimaryColour=&H00FFFFFF",   # Branco
-        "OutlineColour=&H00000000",   # Preto
-        "BackColour=&H60000000",      # Sombra suave
-        "Outline=3",
-        "Shadow=2",
-        "Alignment=5",                # Centro da tela (horizontal + vertical)
-        "MarginV=0",
-        "MarginL=80",
-        "MarginR=80",
+        "Fontname=Arial",
+        "FontSize=35",
+        "PrimaryColour=&H00FFFFFF",
+        "OutlineColour=&H00000000",
+        "BackColour=&H80000000",
+        "BorderStyle=1",
+        "Outline=1.5",
+        "Shadow=1.5",
+        "Alignment=5"
     ])
 
     srt_escaped = _escape_srt_path(legendas_srt)
