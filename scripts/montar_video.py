@@ -181,6 +181,9 @@ def montar_video(
         "-c:a",  "aac",
         "-b:a",  "192k",
 
+        # Otimizar para web (ajuda o YouTube a processar instantaneamente)
+        "-movflags", "+faststart",
+
         # Remover metadados do vídeo final também
         "-map_metadata", "-1",
 
