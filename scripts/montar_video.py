@@ -96,6 +96,10 @@ def montar_video(
     """
     os.makedirs(output_dir, exist_ok=True)
 
+    # Garante que a música de fundo instrumental está baixada localmente
+    from scripts.baixar_musica import baixar_musica
+    baixar_musica()
+
     duracao_audio = _duracao_audio(audio_path)
     print(f"⏱️  Duração do áudio : {duracao_audio:.1f}s ({duracao_audio/60:.1f} min)")
     print(f"🎬 Clipes disponíveis: {len(clips)} × ~6.25s cada")
@@ -154,18 +158,22 @@ def montar_video(
         # Input 2: Áudio TTS
         "-i", audio_path,
 
+        # Input 3: Música de fundo instrumental em loop
+        "-stream_loop", "-1",
+        "-i", "data/bg_music.mp3",
+
         # Duração = duração do áudio
         "-t", str(duracao_audio),
 
-        # Mapear vídeo do input 0 e áudio do input 1
-        "-map", "0:v:0",
-        "-map", "1:a:0",
+        # Mapear streams resultantes do filter_complex
+        "-map", "[v]",
+        "-map", "[a]",
 
-        # Filtros de vídeo: escurecimento leve + legendas centralizadas
-        "-vf",
+        # Filtros complexos: legendas + brilho e mixagem de áudio
+        "-filter_complex",
         (
-            "eq=brightness=-0.04:contrast=1.03,"
-            f"subtitles='{srt_escaped}':force_style='{subtitle_style}'"
+            f"[0:v]eq=brightness=-0.04:contrast=1.03,subtitles='{srt_escaped}':force_style='{subtitle_style}'[v];"
+            "[1:a]volume=1.0[voice];[2:a]volume=0.08[bg];[voice][bg]amix=inputs=2:duration=first:dropout_transition=2[a]"
         ),
 
         # Codec vídeo

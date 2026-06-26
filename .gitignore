@@ -38,11 +38,9 @@ env/
 # Logs
 *.log
 
-# OS
-.DS_Store
-Thumbs.db
-desktop.ini
-
 # Assets de fontes baixadas (reinstaladas automaticamente)
 assets/fonts/*.ttf
 assets/fonts/*.otf
+
+# Música de fundo cacheada localmente
+data/bg_music.mp3
