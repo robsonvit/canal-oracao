@@ -173,7 +173,7 @@ def montar_video(
         "-filter_complex",
         (
             f"[0:v]eq=brightness=-0.04:contrast=1.03,subtitles='{srt_escaped}':force_style='{subtitle_style}'[v];"
-            "[1:a]volume=1.0[voice];[2:a]volume=0.08[bg];[voice][bg]amix=inputs=2:duration=first:dropout_transition=2[a]"
+            "[1:a]volume=1.0[voice];[2:a]volume=0.18[bg];[voice][bg]amix=inputs=2:duration=first:dropout_transition=2[a]"
         ),
 
         # Codec vídeo
