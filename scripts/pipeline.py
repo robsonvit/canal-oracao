@@ -60,23 +60,29 @@ def main():
     # Substitui título e enriquece as tags com as dos concorrentes
     dados["titulo"] = titulo_otimizado
 
-    # Merge de tags: pesquisadas primeiro (mais relevantes), depois as originais
-    tags_existentes_lower = {t.lower() for t in tags_pesquisadas}
-    tags_originais_extras = [
-        t for t in dados.get("tags", [])
-        if t.lower() not in tags_existentes_lower and t.strip()
-    ]
-    dados["tags"] = [t for t in tags_pesquisadas + tags_originais_extras if t.strip()]
+    # ── Tratamento ROBUSTO das Tags ──
+    import re
+    tags_combinadas = tags_pesquisadas + dados.get("tags", [])
+    tags_validas = []
+    
+    for t in tags_combinadas:
+        # Remove caracteres problemáticos
+        t_clean = re.sub(r'[\"<>,\n|\[\]]', '', str(t)).strip()
+        if t_clean and len(t_clean) <= 60:
+            # Evita duplicatas case-insensitive
+            if t_clean.lower() not in [tv.lower() for tv in tags_validas]:
+                tags_validas.append(t_clean)
 
-    # Limitar ao total de 500 chars que a YouTube API aceita
+    # Limitar de forma mais agressiva (usando 400 chars max para margem de segurança)
     total_chars = 0
     tags_limitadas = []
-    for tag in dados["tags"]:
-        if total_chars + len(tag) + 1 <= 500:
+    for tag in tags_validas:
+        if total_chars + len(tag) + 1 <= 400:
             tags_limitadas.append(tag)
             total_chars += len(tag) + 1
         else:
             break
+            
     dados["tags"] = tags_limitadas
 
     print(f"\n  📌 Título final   : {dados['titulo']}")
