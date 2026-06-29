@@ -64,9 +64,9 @@ def main():
     tags_existentes_lower = {t.lower() for t in tags_pesquisadas}
     tags_originais_extras = [
         t for t in dados.get("tags", [])
-        if t.lower() not in tags_existentes_lower
+        if t.lower() not in tags_existentes_lower and t.strip()
     ]
-    dados["tags"] = tags_pesquisadas + tags_originais_extras
+    dados["tags"] = [t for t in tags_pesquisadas + tags_originais_extras if t.strip()]
 
     # Limitar ao total de 500 chars que a YouTube API aceita
     total_chars = 0

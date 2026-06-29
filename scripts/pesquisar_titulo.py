@@ -150,8 +150,13 @@ def _extrair_tags_concorrentes(videos: list[dict]) -> list[str]:
     _ignorar = {"bispo", "pastor", "padre", "padre"}
 
     for video in videos:
-        for tag in video.get("tags", []):
-            tag_lower = tag.lower().strip()
+        for raw_tag in video.get("tags", []):
+            # Sanitiza a tag: remove aspas, <, >, e vírgulas
+            tag = re.sub(r'[\"<>,\n]', '', raw_tag).strip()
+            if not tag:
+                continue
+                
+            tag_lower = tag.lower()
             if tag_lower in tags_vistas:
                 continue
             # Ignora tags muito longas ou com nome de canal concorrente
