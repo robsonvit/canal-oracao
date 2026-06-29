@@ -94,7 +94,7 @@ Ao final do texto, adicione exatamente esta linha separadora e então o JSON:
 ---JSON---
 {{
   "titulo": "PODEROSA ORAÇÃO DO SALMO {salmo_info['numero']} — {salmo_info['tema'].upper()} | Canal Oração",
-  "descricao": "Escreva uma descrição profissional de 350 a 450 palavras seguindo EXATAMENTE esta estrutura:\n\nPARÁGRAFO 1 (Hook SEO - 3 linhas): Comece com a palavra-chave principal (ex: 'Oração poderosa do Salmo {salmo_info['numero']}') + benefício emocional imediato + convite urgente para assistir.\n\nPARÁGRAFO 2 (O que você vai receber - 4 linhas): Descreva o que o vídeo contém: o Salmo {salmo_info['numero']} completo, oração pela {salmo_info['tema']}, quebra de amarras ({salmo_info['keys']}), bênção sobre a família.\n\nPARÁGRAFO 3 (Instrução espiritual - 3 linhas): Oriente a pessoa a ouvir por 7 dias seguidos, levantar a mão direita, repetir as declarações em voz alta.\n\nPARÁGRAFO 4 (Engajamento - 3 linhas): Peça o LIKE explicando que ajuda o canal a alcançar mais pessoas que precisam de oração. Convide para SE INSCREVER para receber orações diárias. Peça para deixar nomes nos comentários.\n\nPARÁGRAFO 5 (Compartilhamento - 2 linhas): Incentive compartilhar com família e amigos que precisam de uma palavra de fé hoje.\n\nFINAL: Adicione exatamente estas hashtags numa linha separada:\n#oração #salmo{salmo_info['numero']} #oraçãoPoderosa #canalOração #fé #Jesus #Deus #bênção #cura #proteção #oraçãoEvangélica #palavraDeDeus #milagre #quebraDeAmarras #oraçãoDoDia",
+  "descricao": "(300-400 palavras descrevendo a oração, os temas abordados, pedindo like, inscrição e comentários com nomes de familiares)",
   "tags": ["oração", "salmo {salmo_info['numero']}", "oração poderosa", "proteção", "família", "bênção", "cura", "quebrar amarras", "vitória", "canal oração", "oração do dia", "Deus", "fé", "palavra de Deus", "oração evangélica"],
   "salmo": "{salmo_info['numero']}",
   "tema": "{salmo_info['tema']}"
@@ -127,35 +127,17 @@ Ao final do texto, adicione exatamente esta linha separadora e então o JSON:
 
 
 def _metadata_padrao(salmo_info: dict) -> dict:
-    descricao_seo = (
-        f"🙏 Oração Poderosa do Salmo {salmo_info['numero']} — {salmo_info['tema']}\n\n"
-        f"Você está recebendo uma oração especial baseada no Salmo {salmo_info['numero']}, "
-        f"preparada especialmente para trazer {salmo_info['keys']} para a sua vida e de toda a sua família. "
-        f"Assista até o final e receba a bênção de Deus agora mesmo.\n\n"
-        f"Nesta oração você vai receber:\n"
-        f"✅ O Salmo {salmo_info['numero']} completo, versículo por versículo\n"
-        f"✅ Oração poderosa pela {salmo_info['tema']}\n"
-        f"✅ Quebra de amarras espirituais, financeiras e de saúde\n"
-        f"✅ Bênção sobre sua casa, família e todos os seus filhos\n\n"
-        f"👉 Ore por 7 dias seguidos para potencializar os resultados. "
-        f"Levante sua mão direita ao céu e repita as declarações em voz alta.\n\n"
-        f"❤️ Se esta oração te abençoou, dê um LIKE — isso avisa ao YouTube que este conteúdo "
-        f"precisa chegar a mais pessoas que precisam de uma palavra de fé. "
-        f"INSCREVA-SE no canal para receber novas orações todos os dias. "
-        f"Deixe nos comentários o SEU NOME e o de seus familiares para receber oração especial.\n\n"
-        f"🙌 Compartilhe com alguém que precisa de fé e de uma oração poderosa hoje.\n\n"
-        f"#oração #salmo{salmo_info['numero']} #oraçãoPoderosa #canalOração #fé "
-        f"#Jesus #Deus #bênção #cura #proteção #oraçãoEvangélica #palavraDeDeus #milagre "
-        f"#quebraDeAmarras #oraçãoDoDia"
-    )
     return {
         "titulo": f"PODEROSA ORAÇÃO DO SALMO {salmo_info['numero']} — {salmo_info['tema'].upper()} | Canal Oração",
-        "descricao": descricao_seo,
+        "descricao": (
+            f"Oração poderosa do Salmo {salmo_info['numero']} para {salmo_info['keys']}. "
+            "Deixe seu nome e o de seus familiares nos comentários para receber oração especial. "
+            "Dê seu like e se inscreva no canal para receber orações diárias!"
+        ),
         "tags": [
             "oração", f"salmo {salmo_info['numero']}", "oração poderosa",
             "proteção", "família", "bênção", "cura", "quebrar amarras",
             "vitória", "canal oração", "oração do dia", "Deus", "fé",
-            "Jesus", "palavra de Deus", "milagre", "oração evangélica",
         ],
         "salmo": salmo_info["numero"],
         "tema": salmo_info["tema"],

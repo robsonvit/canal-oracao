@@ -1,8 +1,9 @@
 name: 🙏 Gerar Oração Diária
 
 on:
+  schedule:
+    - cron: '0 9 * * *'  # 06:00 BRT (09:00 UTC) todos os dias
   workflow_dispatch:       # Permite execução manual pelo painel do GitHub
-  repository_dispatch:     # Permite disparo por webhook externo (Google Script)
 
 permissions:
   contents: write          # Necessário para fazer commit do tracking de vídeos
@@ -13,7 +14,6 @@ env:
   YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
   YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
   YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-  YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
 
 jobs:
   gerar-oracao:
@@ -79,7 +79,7 @@ jobs:
         with:
           name: oracao-${{ github.run_number }}-${{ github.run_attempt }}
           path: |
-            output/*.mp4
+            output/video_final.mp4
             output/thumbnail.jpg
             output/oracao.json
           retention-days: 7

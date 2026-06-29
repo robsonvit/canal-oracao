@@ -42,49 +42,13 @@ def main():
 
     dados = gerar_oracao()
     oracao_json = os.path.join(OUTPUT_DIR, "oracao.json")
+    with open(oracao_json, "w", encoding="utf-8") as f:
+        json.dump(dados, f, ensure_ascii=False, indent=2)
 
     palavras = len(dados["oracao_texto"].split())
     print(f"✅ Salmo {dados['salmo']} — {dados['tema']}")
-    print(f"   Título base : {dados['titulo']}")
-    print(f"   Palavras    : {palavras}")
-
-    # ── Pesquisa de título otimizado por concorrentes ──────────────
-    print("\n  🔎 Pesquisando títulos dos vídeos mais visualizados...")
-    from scripts.pesquisar_titulo import pesquisar_e_gerar_titulo
-
-    titulo_otimizado, tags_pesquisadas = pesquisar_e_gerar_titulo(
-        tema=dados["tema"],
-        salmo=dados["salmo"],
-    )
-
-    # Substitui título e enriquece as tags com as dos concorrentes
-    dados["titulo"] = titulo_otimizado
-
-    # Merge de tags: pesquisadas primeiro (mais relevantes), depois as originais
-    tags_existentes_lower = {t.lower() for t in tags_pesquisadas}
-    tags_originais_extras = [
-        t for t in dados.get("tags", [])
-        if t.lower() not in tags_existentes_lower
-    ]
-    dados["tags"] = tags_pesquisadas + tags_originais_extras
-
-    # Limitar ao total de 500 chars que a YouTube API aceita
-    total_chars = 0
-    tags_limitadas = []
-    for tag in dados["tags"]:
-        if total_chars + len(tag) + 1 <= 500:
-            tags_limitadas.append(tag)
-            total_chars += len(tag) + 1
-        else:
-            break
-    dados["tags"] = tags_limitadas
-
-    print(f"\n  📌 Título final   : {dados['titulo']}")
-    print(f"  🏷️  Tags totais    : {len(dados['tags'])}")
-
-    # Salva JSON atualizado com título otimizado
-    with open(oracao_json, "w", encoding="utf-8") as f:
-        json.dump(dados, f, ensure_ascii=False, indent=2)
+    print(f"   Título  : {dados['titulo']}")
+    print(f"   Palavras: {palavras}")
 
     # ──────────────────────────────────────────────────────────────
     # PASSO 2 — Gerar áudio TTS e legendas SRT
@@ -130,9 +94,9 @@ def main():
     )
 
     # ──────────────────────────────────────────────────────────────
-    # PASSO 6 — Upload para o YouTube (com agendamento)
+    # PASSO 6 — Upload para o YouTube
     # ──────────────────────────────────────────────────────────────
-    _titulo(6, 6, "Renomeando arquivo e agendando no YouTube...")
+    _titulo(6, 6, "Publicando no YouTube...")
 
     if not os.environ.get("YOUTUBE_REFRESH_TOKEN"):
         print("⚠️  YOUTUBE_REFRESH_TOKEN não configurado.")
@@ -146,18 +110,11 @@ def main():
 
     print("\n" + "═"*60)
     print("  📁 Arquivos gerados:")
-    for nome in ["oracao.json", "audio.mp3", "legendas.srt", "thumbnail.jpg"]:
+    for nome in ["oracao.json", "audio.mp3", "legendas.srt", "thumbnail.jpg", "video_final.mp4"]:
         caminho = os.path.join(OUTPUT_DIR, nome)
         if os.path.exists(caminho):
             tamanho = os.path.getsize(caminho)
             print(f"     {nome:<22} {tamanho/1024:.0f} KB")
-    # Busca o vídeo renomeado (nome pode ter mudado)
-    for arq in os.listdir(OUTPUT_DIR):
-        if arq.endswith(".mp4") and not arq.startswith("clip"):
-            caminho = os.path.join(OUTPUT_DIR, arq)
-            tamanho = os.path.getsize(caminho)
-            print(f"     {arq:<22} {tamanho/1024/1024:.1f} MB")
-            break
     print("═"*60 + "\n")
 
 
