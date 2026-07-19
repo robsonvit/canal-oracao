@@ -134,7 +134,7 @@ def upload_youtube(
             "publishAt":                publish_at_str,
             "selfDeclaredMadeForKids":  False,
             "madeForKids":              False,
-            "containsSyntheticMedia":   True,
+            "containsSyntheticMedia":   False,
         },
     }
 

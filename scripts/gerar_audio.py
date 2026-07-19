@@ -10,13 +10,10 @@ import os
 import re
 import json
 
-import edge_tts
-
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Configurações da voz
 # ─────────────────────────────────────────────────────────────────────────────
-VOZ = "pt-BR-AntonioNeural"   # Voz masculina natural do Brasil (sem distorções de velocidade)
+VOZ = "pm_santa"   # Voz masculina do Kokoro
 PALAVRAS_POR_LEGENDA = 5      # Palavras por bloco de legenda para não estourar a tela
 
 
@@ -24,17 +21,31 @@ PALAVRAS_POR_LEGENDA = 5      # Palavras por bloco de legenda para não estourar
 # Geração principal (assíncrona)
 # ─────────────────────────────────────────────────────────────────────────────
 async def _gerar_async(texto: str, output_dir: str) -> tuple[str, str]:
-    """Gera MP3 + SRT de forma assíncrona."""
-    # Adicionando um ritmo mais lento (-20%) e tom mais grave (-10Hz) para a oração ficar solene
-    communicate = edge_tts.Communicate(texto, VOZ, rate="-20%", pitch="-10Hz")
-
-    audio_path = os.path.join(output_dir, "audio.mp3")
+    """Gera WAV + SRT de forma assíncrona."""
+    
+    audio_path = os.path.join(output_dir, "audio.wav")
     srt_path   = os.path.join(output_dir, "legendas.srt")
 
-    with open(audio_path, "wb") as audio_file:
-        async for chunk in communicate.stream():
-            if chunk["type"] == "audio":
-                audio_file.write(chunk["data"])
+    print(f"🎙️  Gerando áudio com Kokoro TTS (Voz: {VOZ})...")
+    from kokoro import KPipeline
+    import soundfile as sf
+    import numpy as np
+
+    # 'p' para Português do Brasil
+    pipeline = KPipeline(lang_code='p')
+    
+    # Speed 1.0 (mantemos um ritmo solene)
+    generator = pipeline(texto, voice=VOZ, speed=1.0, split_pattern=r'\n+')
+    
+    audio_chunks = []
+    for i, (gs, ps, audio) in enumerate(generator):
+        audio_chunks.append(audio)
+        
+    if not audio_chunks:
+        raise ValueError("Nenhum áudio gerado pelo Kokoro!")
+        
+    final_audio = np.concatenate(audio_chunks)
+    sf.write(audio_path, final_audio, 24000)
 
     def _segundos_para_hms(segundos: float) -> str:
         horas = int(segundos // 3600)
@@ -52,7 +63,7 @@ async def _gerar_async(texto: str, output_dir: str) -> tuple[str, str]:
     try:
         with open(audio_path, "rb") as f:
             transcricao = cliente_groq.audio.transcriptions.create(
-                file=("audio.mp3", f.read()),
+                file=("audio.wav", f.read()),
                 model="whisper-large-v3-turbo",
                 response_format="verbose_json",
                 language="pt"
