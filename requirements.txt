@@ -12,6 +12,8 @@ requests>=2.31.0
 
 # Imagens — geração de thumbnail
 Pillow>=10.0.0
+icrawler>=0.6.6
+
 
 # YouTube Data API v3
 google-api-python-client>=2.100.0

@@ -1,213 +1,329 @@
 """
 gerar_capa.py
 ─────────────
-Gera a thumbnail do vídeo (1280×720) no estilo do canal Bispo Bruno Leonardo:
-  • Lado esquerdo: foto escura de mãos em oração / bíblia (baixada do Pexels)
-  • Lado direito: fundo preto com texto hierárquico em branco e dourado
-  • Número do salmo em gigante dourado/laranja
-  • Linha dourada divisória
+Gera a thumbnail do vídeo (1280×720) no estilo moderno de canais de orações:
+  • Imagem de fundo completa: Busca via icrawler (Google como padrão, Bing como fallback, Pexels como fallback secundário)
+  • Tema: Jesus Cristo (pintura, ilustração ou arte digital de alta definição)
+  • Fusão degradê horizontal suave para o lado esquerdo (onde fica o texto)
+  • Textos grandes e chamativos em fonte Sans-serif pesada (Arial Black/Impact) com contorno preto (stroke)
+  • Ícone estilizado de relógio desenhado sob demanda caso mencione tempo
 """
 
 import os
 import io
 import json
 import random
+import shutil
 import requests
-
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
-
+from icrawler.builtin import GoogleImageCrawler, BingImageCrawler
 
 PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY", "")
 LARGURA, ALTURA = 1280, 720
 
 # Paleta de cores
 BRANCO       = (255, 255, 255)
-DOURADO      = (212, 175, 55)
-LARANJA_OURO = (255, 190, 40)
-PRETO        = (0,   0,   0)
-PRETO_RICO   = (8,   6,   4)
-CINZA_SUAVE  = (200, 200, 200)
+DOURADO      = (255, 215, 0)
+AMARELO      = (255, 235, 59)
+PRETO        = (0, 0, 0)
+PRETO_RICO   = (8, 6, 4)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Download de imagem de fundo
+# 1. Download de imagem de fundo com icrawler (Google / Bing / Pexels)
 # ─────────────────────────────────────────────────────────────────────────────
-def _baixar_foto_oracao() -> Image.Image:
-    """Tenta baixar foto de mãos em oração com bíblia do Pexels."""
+def _buscar_imagem_jesus(tema: str, titulo: str, output_dir: str) -> Image.Image:
+    """Busca imagem artística de Jesus usando icrawler (Google/Bing) ou Pexels como fallback."""
+    tema_lower = tema.lower() if tema else ""
+    titulo_lower = titulo.lower() if titulo else ""
+    
+    # Define query em inglês para melhores resultados artísticos
+    query = "jesus praying digital art HD"
+    if "noite" in tema_lower or "dormir" in tema_lower or "noite" in titulo_lower or "dormir" in titulo_lower:
+        query = "jesus praying night digital art"
+    elif "manhã" in tema_lower or "dia" in tema_lower or "manhã" in titulo_lower or "dia" in titulo_lower:
+        query = "jesus praying morning sunrise digital art"
+    elif "espinhos" in tema_lower or "coroa" in tema_lower or "espinhos" in titulo_lower or "coroa" in titulo_lower:
+        query = "jesus crown of thorns painting digital art"
+
+    temp_dir = os.path.join(output_dir, "temp_icrawler")
+    if os.path.exists(temp_dir):
+        try:
+            shutil.rmtree(temp_dir)
+        except Exception:
+            pass
+    os.makedirs(temp_dir, exist_ok=True)
+
+    print(f"[BUSCA] Buscando imagem para a thumbnail com query: '{query}'...")
+
+    # 1. Tenta GoogleImageCrawler
+    try:
+        google_crawler = GoogleImageCrawler(downloader_threads=4, storage={'root_dir': temp_dir})
+        # Desativa logs detalhados do icrawler
+        google_crawler.logger.setLevel(50)
+        google_crawler.crawl(keyword=query, max_num=1, min_size=(800, 600))
+    except Exception as e:
+        print(f"[AVISO] GoogleImageCrawler falhou: {e}")
+
+    # 2. Se falhar, tenta BingImageCrawler
+    arquivos = [f for f in os.listdir(temp_dir) if os.path.isfile(os.path.join(temp_dir, f))]
+    if not arquivos:
+        print("[AVISO] Nenhuma imagem retornada do Google. Tentando BingImageCrawler...")
+        try:
+            bing_crawler = BingImageCrawler(downloader_threads=4, storage={'root_dir': temp_dir})
+            bing_crawler.logger.setLevel(50)
+            bing_crawler.crawl(keyword=query, max_num=1, min_size=(800, 600))
+        except Exception as e:
+            print(f"[AVISO] BingImageCrawler falhou: {e}")
+
+    # Abre a imagem baixada
+    arquivos = [f for f in os.listdir(temp_dir) if os.path.isfile(os.path.join(temp_dir, f))]
+    if arquivos:
+        caminho_imagem = os.path.join(temp_dir, arquivos[0])
+        try:
+            img = Image.open(caminho_imagem).convert("RGB")
+            # Remove temporários
+            shutil.rmtree(temp_dir)
+            print("[OK] Imagem de Jesus obtida com sucesso via crawler!")
+            return img
+        except Exception as e:
+            print(f"[AVISO] Erro ao carregar imagem baixada: {e}")
+
+    # 3. Fallback para Pexels
+    print("[AVISO] Fallback para Pexels API...")
     headers = {"Authorization": PEXELS_API_KEY}
-    termos  = [
-        "praying hands bible open",
-        "bible prayer hands dark",
-        "open bible candle",
-        "hands prayer worship",
-    ]
-    for termo in termos:
+    termos_pexels = ["praying hands bible", "open bible candle", "hands prayer worship"]
+    for termo in termos_pexels:
         try:
             resp = requests.get(
                 "https://api.pexels.com/v1/search",
                 headers=headers,
-                params={"query": termo, "orientation": "landscape", "per_page": 8},
-                timeout=20,
+                params={"query": termo, "orientation": "landscape", "per_page": 5},
+                timeout=15,
             )
             fotos = resp.json().get("photos", [])
             if fotos:
-                foto  = random.choice(fotos)
-                dados = requests.get(foto["src"]["large"], timeout=30).content
+                foto = random.choice(fotos)
+                dados = requests.get(foto["src"]["large"], timeout=20).content
                 return Image.open(io.BytesIO(dados)).convert("RGB")
-        except Exception:
+        except Exception as e:
+            print(f"[AVISO] Erro no fallback Pexels para '{termo}': {e}")
             continue
 
-    # Fallback: fundo gradiente escuro
-    img = Image.new("RGB", (LARGURA, ALTURA), (15, 10, 5))
+    # Fallback absoluto: Imagem de gradiente escuro
+    print("[AVISO] Usando fallback absoluto de gradiente...")
+    img = Image.new("RGB", (LARGURA, ALTURA), (18, 12, 8))
+    draw = ImageDraw.Draw(img)
+    for y in range(ALTURA):
+        r = int(18 + (y / ALTURA) * 15)
+        g = int(12 + (y / ALTURA) * 10)
+        b = int(8 + (y / ALTURA) * 8)
+        draw.line([(0, y), (LARGURA, y)], fill=(r, g, b))
     return img
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Carregamento de fontes
+# 2. Carregamento de fontes pesadas
 # ─────────────────────────────────────────────────────────────────────────────
 def _fonte(tamanho: int, bold: bool = True) -> ImageFont.FreeTypeFont:
-    """Tenta várias fontes serif disponíveis no sistema Ubuntu/Windows."""
+    """Retorna uma fonte Sans-Serif pesada para impacto visual."""
     caminhos = []
     if bold:
         caminhos = [
-            "/usr/share/fonts/truetype/freefont/FreeSerifBold.ttf",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf",
-            "/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf",
-            "C:/Windows/Fonts/georgiab.ttf",
-            "C:/Windows/Fonts/arialbd.ttf",
-            "C:/Windows/Fonts/arial.ttf",
+            "C:/Windows/Fonts/ariblk.ttf",   # Arial Black (Melhor para thumbs do Windows)
+            "C:/Windows/Fonts/impact.ttf",   # Impact
+            "C:/Windows/Fonts/arialbd.ttf",  # Arial Bold
+            "C:/Windows/Fonts/trebucbd.ttf", # Trebuchet Bold
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
         ]
     else:
         caminhos = [
-            "/usr/share/fonts/truetype/freefont/FreeSerif.ttf",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
-            "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf",
-            "C:/Windows/Fonts/georgia.ttf",
             "C:/Windows/Fonts/arial.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         ]
     for caminho in caminhos:
-        try:
-            return ImageFont.truetype(caminho, tamanho)
-        except Exception:
-            continue
-    return ImageFont.load_default()
+        if os.path.exists(caminho):
+            try:
+                return ImageFont.truetype(caminho, tamanho)
+            except Exception:
+                continue
+    try:
+        # Fallback para fonte padrão se nada for encontrado
+        return ImageFont.load_default()
+    except Exception:
+        pass
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Função principal
+# 3. Funções de desenho auxiliares
+# ─────────────────────────────────────────────────────────────────────────────
+def _desenhar_relogio(draw: ImageDraw.ImageDraw, cx: int, cy: int, r: int):
+    """Desenha um relógio analógico estilizado (semelhante ao emoji ⏰)."""
+    # Corpo do relógio (Amarelo brilhante)
+    draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=AMARELO, outline=PRETO, width=4)
+    # Detalhes das orelhinhas (sinos) do despertador
+    draw.pieslice([cx - r, cy - r, cx - int(r*0.5), cy - int(r*0.5)], start=180, end=270, fill=PRETO)
+    draw.pieslice([cx + int(r*0.5), cy - r, cx + r, cy - int(r*0.5)], start=270, end=360, fill=PRETO)
+    # Ponteiros do relógio (Preto)
+    draw.line([cx, cy, cx, cy - r + 12], fill=PRETO, width=4) # ponteiro longo
+    draw.line([cx, cy, cx + r - 15, cy], fill=PRETO, width=4) # ponteiro curto
+    # Centro
+    draw.ellipse([cx - 4, cy - 4, cx + 4, cy + 4], fill=PRETO)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 4. Função Principal de Geração de Capa
 # ─────────────────────────────────────────────────────────────────────────────
 def gerar_thumbnail(salmo: str, tema: str, titulo: str, output_dir: str = "output") -> str:
-    """
-    Gera thumbnail 1280×720 e salva em output/thumbnail.jpg.
-    Retorna o caminho do arquivo.
-    """
+    """Gera uma thumbnail de alta definição estilo canal de oração."""
     os.makedirs(output_dir, exist_ok=True)
 
-    # ── 1. Baixar foto de fundo ──────────────────────────────────────────────
-    foto = _baixar_foto_oracao()
+    # 1. Buscar e preparar imagem de fundo
+    foto = _buscar_imagem_jesus(tema, titulo, output_dir)
+    
+    # Corta e redimensiona para preencher 1280x720, priorizando o centro/direita
+    w, h = foto.size
+    proporcao_alvo = LARGURA / ALTURA
+    proporcao_foto = w / h
+
+    if proporcao_foto > proporcao_alvo:
+        # Foto é mais larga: recortar as laterais
+        nova_largura = int(h * proporcao_alvo)
+        offset = (w - nova_largura) // 2
+        # Tenta deslocar ligeiramente para a direita para posicionar o foco de Jesus à direita
+        offset_dir = int(offset * 1.3)
+        if offset_dir + nova_largura <= w:
+            offset = offset_dir
+        foto = foto.crop((offset, 0, offset + nova_largura, h))
+    else:
+        # Foto é mais alta: recortar topo/rodapé
+        nova_altura = int(w / proporcao_alvo)
+        offset = (h - nova_altura) // 2
+        foto = foto.crop((0, offset, w, offset + nova_altura))
+
     foto = foto.resize((LARGURA, ALTURA), Image.LANCZOS)
 
-    # ── 2. Canvas base ───────────────────────────────────────────────────────
-    canvas = Image.new("RGB", (LARGURA, ALTURA), PRETO_RICO)
-
-    # ── 3. Lado esquerdo: foto com overlay escuro ────────────────────────────
-    metade_esq = foto.crop((0, 0, 640, ALTURA))
-
-    # Camada de escurecimento
-    overlay = Image.new("RGBA", (640, ALTURA), (0, 0, 0, 175))
-    metade_rgba = metade_esq.convert("RGBA")
-    metade_rgba.paste(overlay, (0, 0), overlay)
-
-    # Gradiente horizontal (fade para o lado direito)
-    fade = Image.new("RGBA", (200, ALTURA), (0, 0, 0, 0))
-    for x in range(200):
-        alpha = int((x / 200) * 220)
-        for y in range(ALTURA):
-            fade.putpixel((x, y), (0, 0, 0, alpha))
-    metade_rgba.paste(fade, (440, 0), fade)
-
-    canvas.paste(metade_rgba.convert("RGB"), (0, 0))
-
-    # ── 4. Lado direito: fundo preto sólido ─────────────────────────────────
-    lado_dir = Image.new("RGB", (640, ALTURA), PRETO_RICO)
-    canvas.paste(lado_dir, (640, 0))
-
-    # ── 5. Linha divisória dourada ───────────────────────────────────────────
-    draw = ImageDraw.Draw(canvas)
-    draw.line([(636, 30), (636, ALTURA - 30)], fill=DOURADO, width=3)
-
-    # ── 6. Textos no lado direito ────────────────────────────────────────────
-    x0          = 660    # margem esquerda do texto
-    max_largura = 590    # largura máxima para textos
-
-    def centralizar_x(texto, font):
-        """Retorna x para centralizar na área direita."""
-        bbox = draw.textbbox((0, 0), texto, font=font)
-        w    = bbox[2] - bbox[0]
-        return x0 + (max_largura - w) // 2
-
-    # "PODEROSA ORAÇÃO" — pequeno, branco, topo
-    f_sub  = _fonte(30, bold=True)
-    y = 55
-    tx_sub = "PODEROSA ORAÇÃO"
-    draw.text((centralizar_x(tx_sub, f_sub), y), tx_sub, fill=BRANCO, font=f_sub)
-
-    # "DO SALMO" — grande, branco
-    f_salmo = _fonte(68, bold=True)
-    y += 50
-    tx_salmo = "DO SALMO"
-    draw.text((centralizar_x(tx_salmo, f_salmo), y), tx_salmo, fill=BRANCO, font=f_salmo)
-
-    # Número do salmo — gigante, dourado/laranja
-    f_num = _fonte(200, bold=True)
-    y += 75
-    tx_num = salmo
-    # Sombra
-    draw.text((centralizar_x(tx_num, f_num) + 3, y + 3), tx_num, fill=(80, 60, 0), font=f_num)
-    # Texto principal
-    draw.text((centralizar_x(tx_num, f_num), y), tx_num, fill=LARANJA_OURO, font=f_num)
-
-    # Linha dourada abaixo do número
-    y_sep = y + 205
-    draw.line([(x0, y_sep), (x0 + max_largura, y_sep)], fill=DOURADO, width=2)
-
-    # Tema do salmo — quebrado em linhas, branco bold
-    f_tema = _fonte(42, bold=True)
-    y = y_sep + 20
-    palavras  = tema.upper().split()
-    linhas    = []
-    linha_tmp = ""
-    for palavra in palavras:
-        teste = (linha_tmp + " " + palavra).strip()
-        bbox  = draw.textbbox((0, 0), teste, font=f_tema)
-        if bbox[2] - bbox[0] > max_largura and linha_tmp:
-            linhas.append(linha_tmp)
-            linha_tmp = palavra
+    # 2. Aplicar degradê escuro no lado esquerdo (onde ficará o texto)
+    overlay = Image.new("RGBA", (LARGURA, ALTURA), (0, 0, 0, 0))
+    draw_overlay = ImageDraw.Draw(overlay)
+    
+    # Criar um gradiente horizontal bem forte
+    for x in range(LARGURA):
+        if x < 850:
+            # Opacidade decai de 250 (esquerda) a 0 (perto do x=850)
+            alpha = int(255 * (1.0 - (x / 850) ** 1.3))
+            alpha = max(0, min(255, alpha))
         else:
-            linha_tmp = teste
-    if linha_tmp:
-        linhas.append(linha_tmp)
+            alpha = 0
+        draw_overlay.line([(x, 0), (x, ALTURA)], fill=(0, 0, 0, alpha))
 
-    for linha in linhas[:3]:
-        draw.text((centralizar_x(linha, f_tema), y), linha, fill=BRANCO, font=f_tema)
-        y += 50
+    # Combinar a foto de fundo com o degradê escuro
+    canvas = Image.new("RGBA", (LARGURA, ALTURA))
+    canvas.paste(foto, (0, 0))
+    canvas = Image.alpha_composite(canvas, overlay).convert("RGB")
+    draw = ImageDraw.Draw(canvas)
 
-    # "CANAL ORAÇÃO" — rodapé dourado
-    f_rodape = _fonte(26, bold=False)
-    tx_rod   = "CANAL ORAÇÃO"
-    draw.text(
-        (centralizar_x(tx_rod, f_rodape), ALTURA - 50),
-        tx_rod, fill=DOURADO, font=f_rodape
-    )
+    # 3. Processar textos chamativos e curtos
+    tema_upper = tema.upper().strip() if tema else ""
+    titulo_upper = titulo.upper().strip() if titulo else ""
 
-    # ── 7. Salvar ─────────────────────────────────────────────────────────────
+    linhas = []
+    relogio = False
+
+    # Detecção inteligente do tema para textos chamativos
+    if "NOITE" in tema_upper or "NOITE" in titulo_upper or "DORMIR" in tema_upper or "DORMIR" in titulo_upper:
+        linhas = ["ORAÇÃO", "DA NOITE"]
+        if "5 MIN" in tema_upper or "5 MIN" in titulo_upper or "5MIN" in tema_upper or "5MIN" in titulo_upper:
+            linhas.append("SÓ 5 MINUTOS")
+            relogio = True
+        else:
+            linhas.append("PODEROSA")
+    elif "MANHÃ" in tema_upper or "MANHÃ" in titulo_upper or "DIA" in tema_upper or "DIA" in titulo_upper:
+        linhas = ["5 MINUTOS", "COM DEUS"]
+        relogio = True
+        if "HOJE" in titulo_upper or "COMEÇAR" in titulo_upper:
+            linhas.append("PARA COMEÇAR O DIA")
+        else:
+            linhas.append("HOJE")
+    elif salmo and len(salmo.strip()) > 0:
+        num_salmo = salmo.replace("Salmo", "").replace("SALMO", "").strip()
+        linhas = ["ORAÇÃO DO", f"SALMO {num_salmo}"]
+        # Pega a palavra principal do tema para a 3ª linha
+        palavras = [p for p in tema_upper.split() if len(p) > 3]
+        linhas.append(palavras[0] if palavras else "PODEROSA")
+    else:
+        # Default genérico
+        linhas = ["ORAÇÃO", "DE HOJE"]
+        palavras = [p for p in tema_upper.split() if len(p) > 3]
+        linhas.append(palavras[0] if palavras else "PODEROSA")
+
+    # 4. Desenhar os textos na área esquerda
+    x_pos = 80  # margem esquerda
+    y_pos = 120  # posição vertical inicial
+    
+    for idx, linha in enumerate(linhas):
+        # Determina a cor de cada linha para dar contraste e ritmo visual
+        if idx == len(linhas) - 1:
+            # Última linha chamativa sempre em amarelo/ouro
+            cor = AMARELO
+            tamanho = 88
+        elif idx == 0 and ("5 MIN" in linha or "SÓ" in linha or "relogio" in str(relogio)):
+            cor = AMARELO
+            tamanho = 82
+        else:
+            cor = BRANCO
+            tamanho = 96
+
+        font = _fonte(tamanho, bold=True)
+        
+        # Caso o texto seja muito longo para o tamanho padrão, reduz um pouco
+        bbox = draw.textbbox((0, 0), linha, font=font)
+        w_texto = bbox[2] - bbox[0]
+        if w_texto > 720:  # limite da margem de texto
+            font = _fonte(int(tamanho * (720 / w_texto)), bold=True)
+            bbox = draw.textbbox((0, 0), linha, font=font)
+            w_texto = bbox[2] - bbox[0]
+
+        # Efeito de contorno (Stroke) super espesso para destacar muito no fundo
+        draw.text(
+            (x_pos, y_pos),
+            linha,
+            fill=cor,
+            font=font,
+            stroke_width=8,
+            stroke_fill=PRETO
+        )
+
+        # Desenhar relógio analógico se for solicitado e for a linha do tempo
+        if relogio and ("5" in linha or "MINUTOS" in linha) and idx == 0:
+            rx = x_pos + w_texto + 60
+            ry = y_pos + (bbox[3] - bbox[1]) // 2
+            _desenhar_relogio(draw, rx, ry, 35)
+
+        y_pos += int((bbox[3] - bbox[1]) * 1.15)
+
+    # 5. Salvar a thumbnail final
     output_path = os.path.join(output_dir, "thumbnail.jpg")
     canvas.save(output_path, "JPEG", quality=95)
-    print(f"✅ Thumbnail gerada: {output_path}")
+    print(f"[OK] Nova Thumbnail com icrawler gerada: {output_path}")
     return output_path
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Teste Local
+# ─────────────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    with open("output/oracao.json", encoding="utf-8") as f:
-        data = json.load(f)
-    gerar_thumbnail(data["salmo"], data["tema"], data["titulo"])
+    # Teste de simulação rápida
+    print("[TESTE] Rodando teste de geração de thumbnail...")
+    try:
+        gerar_thumbnail(
+            salmo="Salmo 91",
+            tema="Oração da Noite de Proteção e Sono Tranquilo",
+            titulo="NÃO DURMA ANTES DE FAZER ESTA ORAÇÃO! O Salmo 91 vai te proteger",
+            output_dir="output"
+        )
+    except Exception as e:
+        print(f"❌ Erro no teste local: {e}")
+
