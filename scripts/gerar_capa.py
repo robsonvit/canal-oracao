@@ -286,23 +286,32 @@ def gerar_thumbnail(salmo: str, tema: str, titulo: str, output_dir: str = "outpu
             bbox = draw.textbbox((0, 0), linha, font=font)
             w_texto = bbox[2] - bbox[0]
 
-        # Efeito de contorno (Stroke) super espesso para destacar muito no fundo
+        # Usa as métricas reais da fonte para evitar pulos/pulo de linha desiguais entre palavras com e sem acento
+        ascent, descent = font.getmetrics()
+        # Em letras maiúsculas, a altura visual primária é o ascent. Vamos usá-lo para espaçamento compacto
+        altura_linha = ascent
+
+        # Espessura do contorno proporcional ao tamanho da letra (para ficar bem acabado)
+        stroke_w = max(3, int(font.size * 0.06))
+
+        # Efeito de contorno (Stroke) dinâmico
         draw.text(
             (x_pos, y_pos),
             linha,
             fill=cor,
             font=font,
-            stroke_width=8,
+            stroke_width=stroke_w,
             stroke_fill=PRETO
         )
 
         # Desenhar relógio analógico se for solicitado e for a linha do tempo
         if relogio and ("5" in linha or "MINUTOS" in linha) and idx == 0:
             rx = x_pos + w_texto + 60
-            ry = y_pos + (bbox[3] - bbox[1]) // 2
-            _desenhar_relogio(draw, rx, ry, 35)
+            ry = y_pos + (altura_linha // 2)
+            _desenhar_relogio(draw, rx, ry, int(altura_linha * 0.45))
 
-        y_pos += int((bbox[3] - bbox[1]) * 1.15)
+        # Avança a linha com um espaçamento bem compacto (line-height = 1.05 da altura principal)
+        y_pos += int(altura_linha * 1.05) + (stroke_w)
 
     # 5. Salvar a thumbnail final
     output_path = os.path.join(output_dir, "thumbnail.jpg")
