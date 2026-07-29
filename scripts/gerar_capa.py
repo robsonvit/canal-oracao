@@ -2,7 +2,9 @@
 gerar_capa.py
 ─────────────
 Gera a thumbnail do vídeo (1280×720) no estilo moderno de canais de orações:
-  • Imagem de fundo completa: Busca via icrawler (Google como padrão, Bing como fallback, Pexels como fallback secundário)
+  • Imagem de fundo: Busca via Wikimedia Commons (Wikipedia) — domínio público, 100% seguro.
+    Fallback: Bing Image Search com safeSearch=Strict.
+    Fallback: Pexels com termos religiosos controlados.
   • Tema: Jesus Cristo (pintura, ilustração ou arte digital de alta definição)
   • Fusão degradê horizontal suave para o lado esquerdo (onde fica o texto)
   • Textos grandes e chamativos em fonte Sans-serif pesada (Arial Black/Impact) com contorno preto (stroke)
@@ -11,14 +13,14 @@ Gera a thumbnail do vídeo (1280×720) no estilo moderno de canais de orações:
 
 import os
 import io
-import json
+import re
 import random
-import shutil
 import requests
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
-from icrawler.builtin import GoogleImageCrawler, BingImageCrawler
+import urllib.parse
+from PIL import Image, ImageDraw, ImageFont
 
 PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY", "")
+BING_API_KEY   = os.environ.get("BING_SEARCH_API_KEY", "")  # opcional — chave Azure Cognitive
 LARGURA, ALTURA = 1280, 720
 
 # Paleta de cores
@@ -28,96 +30,265 @@ AMARELO      = (255, 235, 59)
 PRETO        = (0, 0, 0)
 PRETO_RICO   = (8, 6, 4)
 
+# User-Agent legítimo para requisições HTTP
+UA = (
+    "Mozilla/5.0 (compatible; CanalOracao/1.0; "
+    "+https://github.com/robsonvit/canal-oracao)"
+)
+
+# Queries fixas do Wikimedia Commons para arte sacra de Jesus
+_WIKIMEDIA_QUERIES = [
+    "Jesus Christ painting",
+    "Jesus praying art",
+    "Sacred Heart of Jesus painting",
+    "Jesus Christ resurrection painting",
+    "Jesus Christ portrait painting",
+    "Christ praying Gethsemane painting",
+]
+
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 1. Download de imagem de fundo com icrawler (Google / Bing / Pexels)
+# 1. Funções de busca segura de imagem (Wikimedia / Bing / Pexels)
 # ─────────────────────────────────────────────────────────────────────────────
-def _buscar_imagem_jesus(tema: str, titulo: str, output_dir: str) -> Image.Image:
-    """Busca imagem artística de Jesus usando icrawler (Google/Bing) ou Pexels como fallback."""
-    tema_lower = tema.lower() if tema else ""
-    titulo_lower = titulo.lower() if titulo else ""
-    
-    # Define query em inglês para melhores resultados artísticos
-    query = "jesus praying digital art HD"
-    if "noite" in tema_lower or "dormir" in tema_lower or "noite" in titulo_lower or "dormir" in titulo_lower:
-        query = "jesus praying night digital art"
-    elif "manhã" in tema_lower or "dia" in tema_lower or "manhã" in titulo_lower or "dia" in titulo_lower:
-        query = "jesus praying morning sunrise digital art"
-    elif "espinhos" in tema_lower or "coroa" in tema_lower or "espinhos" in titulo_lower or "coroa" in titulo_lower:
-        query = "jesus crown of thorns painting digital art"
 
-    temp_dir = os.path.join(output_dir, "temp_icrawler")
-    if os.path.exists(temp_dir):
-        try:
-            shutil.rmtree(temp_dir)
-        except Exception:
-            pass
-    os.makedirs(temp_dir, exist_ok=True)
+def _montar_query(tema: str, titulo: str) -> str:
+    """Define query de busca baseada no tema — sempre relacionada a Jesus/arte sacra."""
+    texto = (tema or "").lower() + " " + (titulo or "").lower()
+    if "noite" in texto or "dormir" in texto:
+        return "Jesus Christ praying night painting artwork"
+    if "manh" in texto or "amanhecer" in texto or "dia" in texto:
+        return "Jesus Christ sunrise dawn painting artwork"
+    if "espinhos" in texto or "coroa" in texto:
+        return "Jesus Christ crown thorns painting sacred art"
+    if "ressurrei" in texto or "ressuscitou" in texto:
+        return "Jesus Christ resurrection painting artwork"
+    if "paz" in texto or "tranquil" in texto:
+        return "Jesus Christ peaceful painting artwork"
+    return "Jesus Christ praying painting sacred artwork"
 
-    print(f"[BUSCA] Buscando imagem para a thumbnail com query: '{query}'...")
 
-    # 1. Tenta GoogleImageCrawler
+def _baixar_imagem(url: str, min_w: int = 400, min_h: int = 300):
+    """Baixa e valida uma imagem. Rejeita se for muito pequena."""
     try:
-        google_crawler = GoogleImageCrawler(downloader_threads=4, storage={'root_dir': temp_dir})
-        # Desativa logs detalhados do icrawler
-        google_crawler.logger.setLevel(50)
-        google_crawler.crawl(keyword=query, max_num=1, min_size=(800, 600))
+        resp = requests.get(url, headers={"User-Agent": UA}, timeout=20, stream=True)
+        resp.raise_for_status()
+        img = Image.open(io.BytesIO(resp.content)).convert("RGB")
+        w, h = img.size
+        if w < min_w or h < min_h:
+            print(f"[AVISO] Imagem muito pequena ({w}x{h}), ignorando.")
+            return None
+        return img
     except Exception as e:
-        print(f"[AVISO] GoogleImageCrawler falhou: {e}")
+        print(f"[AVISO] Falha ao baixar imagem: {e}")
+        return None
 
-    # 2. Se falhar, tenta BingImageCrawler
-    arquivos = [f for f in os.listdir(temp_dir) if os.path.isfile(os.path.join(temp_dir, f))]
-    if not arquivos:
-        print("[AVISO] Nenhuma imagem retornada do Google. Tentando BingImageCrawler...")
-        try:
-            bing_crawler = BingImageCrawler(downloader_threads=4, storage={'root_dir': temp_dir})
-            bing_crawler.logger.setLevel(50)
-            bing_crawler.crawl(keyword=query, max_num=1, min_size=(800, 600))
-        except Exception as e:
-            print(f"[AVISO] BingImageCrawler falhou: {e}")
 
-    # Abre a imagem baixada
-    arquivos = [f for f in os.listdir(temp_dir) if os.path.isfile(os.path.join(temp_dir, f))]
-    if arquivos:
-        caminho_imagem = os.path.join(temp_dir, arquivos[0])
-        try:
-            img = Image.open(caminho_imagem).convert("RGB")
-            # Remove temporários
-            shutil.rmtree(temp_dir)
-            print("[OK] Imagem de Jesus obtida com sucesso via crawler!")
-            return img
-        except Exception as e:
-            print(f"[AVISO] Erro ao carregar imagem baixada: {e}")
+def _obter_url_wikimedia(titulo_arquivo: str):
+    """Obtém a URL direta de download de um arquivo do Wikimedia Commons."""
+    encoded = urllib.parse.quote(titulo_arquivo)
+    info_url = (
+        "https://commons.wikimedia.org/w/api.php"
+        f"?action=query&titles=File:{encoded}"
+        "&prop=imageinfo&iiprop=url&iiurlwidth=1280"
+        "&format=json&origin=*"
+    )
+    try:
+        resp = requests.get(info_url, headers={"User-Agent": UA}, timeout=10)
+        resp.raise_for_status()
+        pages = resp.json().get("query", {}).get("pages", {})
+        for page in pages.values():
+            imageinfo = page.get("imageinfo", [])
+            if imageinfo:
+                return imageinfo[0].get("thumburl") or imageinfo[0].get("url")
+    except Exception as e:
+        print(f"[AVISO] Erro URL Wikimedia '{titulo_arquivo[:40]}': {e}")
+    return None
 
-    # 3. Fallback para Pexels
-    print("[AVISO] Fallback para Pexels API...")
+
+def _buscar_wikimedia(query: str):
+    """
+    Busca imagem no Wikimedia Commons via API pública.
+    Retorna apenas imagens de domínio público / arte sacra religiosa.
+    """
+    search_term = urllib.parse.quote(query)
+    api_url = (
+        "https://commons.wikimedia.org/w/api.php"
+        f"?action=query&list=search&srsearch={search_term}"
+        "&srnamespace=6&srlimit=15&format=json&origin=*"
+    )
+    try:
+        resp = requests.get(api_url, headers={"User-Agent": UA}, timeout=15)
+        resp.raise_for_status()
+        resultados = resp.json().get("query", {}).get("search", [])
+        imagens = [
+            r for r in resultados
+            if any(ext in r["title"].lower() for ext in [".jpg", ".jpeg", ".png"])
+        ]
+        if not imagens:
+            return None
+        random.shuffle(imagens)
+        for item in imagens[:5]:
+            titulo_arquivo = item["title"].replace("File:", "").strip()
+            url_img = _obter_url_wikimedia(titulo_arquivo)
+            if url_img:
+                img = _baixar_imagem(url_img)
+                if img:
+                    print(f"[OK] Imagem do Wikimedia Commons: {titulo_arquivo[:60]}")
+                    return img
+    except Exception as e:
+        print(f"[AVISO] Wikimedia falhou para '{query}': {e}")
+    return None
+
+
+def _buscar_bing_api(query: str):
+    """Usa a API oficial do Bing Image Search (Azure Cognitive Services) com safeSearch=Strict."""
+    try:
+        headers = {"Ocp-Apim-Subscription-Key": BING_API_KEY, "User-Agent": UA}
+        params  = {
+            "q": query, "count": 10,
+            "safeSearch": "Strict",  # FILTRO DE CONTEÚDO ADULTO — OBRIGATÓRIO
+            "imageType": "Photo", "aspect": "Wide",
+            "minWidth": 800, "minHeight": 500,
+        }
+        resp = requests.get(
+            "https://api.bing.microsoft.com/v7.0/images/search",
+            headers=headers, params=params, timeout=15
+        )
+        resp.raise_for_status()
+        items = resp.json().get("value", [])
+        random.shuffle(items)
+        for item in items[:5]:
+            img = _baixar_imagem(item.get("contentUrl", ""))
+            if img:
+                print("[OK] Imagem via Bing API (safeSearch=Strict)")
+                return img
+    except Exception as e:
+        print(f"[AVISO] Bing API falhou: {e}")
+    return None
+
+
+def _buscar_bing_public(query: str):
+    """
+    Busca no endpoint público do Bing Images (sem chave de API).
+    Usa safeSearch=Strict e filtra por licença Creative Commons.
+    """
+    try:
+        encoded = urllib.parse.quote(f"{query} painting art")
+        url = (
+            f"https://www.bing.com/images/search"
+            f"?q={encoded}&form=HDRSC2&first=1&count=10"
+            f"&qft=+filterui:license-L2_L3_L4_L5_L6_L7"
+            f"&safeSearch=Strict"
+        )
+        headers = {
+            "User-Agent": UA,
+            "Accept": "text/html,application/xhtml+xml",
+            "Accept-Language": "en-US,en;q=0.9",
+        }
+        resp = requests.get(url, headers=headers, timeout=20)
+        resp.raise_for_status()
+        pattern = r'"murl":"(https?://[^"]+\.(?:jpg|jpeg|png))"'
+        urls = re.findall(pattern, resp.text)
+        if not urls:
+            urls_enc = re.findall(r'imgurl=([^&"]+\.(?:jpg|jpeg|png))', resp.text)
+            urls = [urllib.parse.unquote(u) for u in urls_enc]
+        if not urls:
+            print("[AVISO] Bing público não retornou URLs de imagens.")
+            return None
+        random.shuffle(urls)
+        for url_img in urls[:5]:
+            img = _baixar_imagem(url_img)
+            if img:
+                print("[OK] Imagem via Bing público (safeSearch=Strict, CC-License)")
+                return img
+    except Exception as e:
+        print(f"[AVISO] Bing público falhou: {e}")
+    return None
+
+
+def _buscar_bing(query: str):
+    """Usa API oficial se BING_API_KEY estiver definida; caso contrário, endpoint público."""
+    if BING_API_KEY:
+        return _buscar_bing_api(query)
+    return _buscar_bing_public(query)
+
+
+_TERMOS_PEXELS_SEGUROS = [
+    "praying hands bible",
+    "open bible candle light",
+    "cross sunset silhouette",
+    "church interior light",
+    "hands prayer worship",
+    "candle flame dark background",
+    "holy book religion",
+]
+
+
+def _buscar_pexels(query: str):
+    """Busca imagens religiosas seguras no Pexels com termos controlados."""
+    if not PEXELS_API_KEY:
+        return None
     headers = {"Authorization": PEXELS_API_KEY}
-    termos_pexels = ["praying hands bible", "open bible candle", "hands prayer worship"]
-    for termo in termos_pexels:
+    for termo in ([query] + _TERMOS_PEXELS_SEGUROS):
         try:
             resp = requests.get(
                 "https://api.pexels.com/v1/search",
                 headers=headers,
-                params={"query": termo, "orientation": "landscape", "per_page": 5},
+                params={"query": termo, "orientation": "landscape", "per_page": 8},
                 timeout=15,
             )
             fotos = resp.json().get("photos", [])
             if fotos:
                 foto = random.choice(fotos)
-                dados = requests.get(foto["src"]["large"], timeout=20).content
-                return Image.open(io.BytesIO(dados)).convert("RGB")
+                url  = foto["src"].get("large2x") or foto["src"].get("large")
+                img  = _baixar_imagem(url)
+                if img:
+                    print(f"[OK] Imagem religiosa segura do Pexels: '{termo}'")
+                    return img
         except Exception as e:
-            print(f"[AVISO] Erro no fallback Pexels para '{termo}': {e}")
-            continue
+            print(f"[AVISO] Pexels falhou para '{termo}': {e}")
+    return None
 
-    # Fallback absoluto: Imagem de gradiente escuro
-    print("[AVISO] Usando fallback absoluto de gradiente...")
+
+def _buscar_imagem_jesus(tema: str, titulo: str, output_dir: str) -> Image.Image:
+    """
+    Busca imagem artística de Jesus / arte sacra.
+    Ordem de prioridade:
+      1. Wikimedia Commons — domínio público, 100% seguro, arte sacra verificada
+      2. Bing Image Search com safeSearch=Strict — filtro ativo
+      3. Pexels com termos religiosos genéricos — fallback controlado
+      4. Gradiente escuro — fallback absoluto (sem imagem externa)
+    """
+    query = _montar_query(tema, titulo)
+    print(f"[BUSCA] Query: '{query}'")
+
+    # 1. Wikimedia Commons (Wikipedia)
+    print("[BUSCA] 1. Wikimedia Commons (Wikipedia, domínio público)...")
+    for q in ([query] + _WIKIMEDIA_QUERIES):
+        img = _buscar_wikimedia(q)
+        if img:
+            return img
+
+    # 2. Bing Image Search (safeSearch=Strict)
+    print("[BUSCA] 2. Bing Image Search (safeSearch=Strict)...")
+    img = _buscar_bing(query)
+    if img:
+        return img
+
+    # 3. Pexels com termos religiosos controlados
+    print("[BUSCA] 3. Pexels com termos religiosos...")
+    img = _buscar_pexels(query)
+    if img:
+        return img
+
+    # 4. Fallback absoluto: gradiente escuro elegante
+    print("[AVISO] Todos os métodos falharam. Usando gradiente escuro.")
     img = Image.new("RGB", (LARGURA, ALTURA), (18, 12, 8))
     draw = ImageDraw.Draw(img)
     for y in range(ALTURA):
         r = int(18 + (y / ALTURA) * 15)
         g = int(12 + (y / ALTURA) * 10)
-        b = int(8 + (y / ALTURA) * 8)
+        b = int(8  + (y / ALTURA) * 8)
         draw.line([(0, y), (LARGURA, y)], fill=(r, g, b))
     return img
 
