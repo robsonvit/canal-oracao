@@ -121,21 +121,37 @@ Exemplo do padrão esperado (baseado nos acima, mas adaptado):
 Se os títulos têm "ORAÇÃO PODEROSA DO SALMO 91", o seu deve ter estrutura similar.
 """
 
-    try:
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.5,
-            max_tokens=150,
-        )
-        titulo = response.choices[0].message.content.strip()
-        # Limpa aspas extras que a IA pode retornar
-        titulo = titulo.strip('"\'').strip()
-        return titulo[:100]
-    except Exception as e:
-        print(f"  ⚠️  Erro ao gerar título com IA: {e}")
-        # Fallback com título padrão melhorado
-        return f"ORAÇÃO PODEROSA DO SALMO {salmo} — {tema.upper()} | Canal Oração"
+    DIAS_SEMANA = ["SEGUNDA", "TERÇA", "QUARTA", "QUINTA", "SEXTA", "SÁBADO", "DOMINGO"]
+    dia_semana_abrev = DIAS_SEMANA[datetime.now().weekday()]
+
+    modelos_candidatos = [
+        "openai/gpt-oss-120b",
+        "qwen/qwen3.8-27b",
+        "openai/gpt-oss-20b",
+    ]
+
+    for modelo in modelos_candidatos:
+        try:
+            response = client.chat.completions.create(
+                model=modelo,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.5,
+                max_tokens=150,
+            )
+            titulo = response.choices[0].message.content.strip()
+            titulo = titulo.strip('"\'').strip()
+            # Remove qualquer menção a "Canal Oração" e garante dia da semana
+            titulo = re.sub(r'\s*\|\s*canal\s+ora[çc][ãa]o\s*', '', titulo, flags=re.IGNORECASE)
+            titulo = re.sub(r'\s*-\s*canal\s+ora[çc][ãa]o\s*', '', titulo, flags=re.IGNORECASE)
+            titulo = re.sub(r'canal\s+ora[çc][ãa]o', '', titulo, flags=re.IGNORECASE).strip()
+            if not any(titulo.upper().endswith(d) for d in DIAS_SEMANA):
+                titulo = f"{titulo} | {dia_semana_abrev}"
+            return titulo[:100]
+        except Exception as e:
+            continue
+
+    # Fallback com dia da semana
+    return f"ORAÇÃO PODEROSA DO SALMO {salmo} — {tema.upper()} | {dia_semana_abrev}"
 
 
 def _extrair_tags_concorrentes(videos: list[dict]) -> list[str]:
