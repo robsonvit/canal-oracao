@@ -80,19 +80,21 @@ def enviar_aprovacao_telegram(
 
         video_para_enviar = video_path
 
-        # Se o vídeo for maior que 48 MB, comprime uma versão leve em 480p para caber no limite de 50MB do Telegram Bot API
+        # Se o vídeo for maior que 48 MB, comprime uma versão leve para caber no limite de 50MB do Telegram Bot API
         if tamanho_mb > 48.0:
             preview_path = os.path.join(output_dir, "video_telegram.mp4")
             print(f"   ⚡ Vídeo tem {tamanho_mb:.1f} MB (limite do Telegram bot é 50 MB). Comprimindo preview leve...")
             cmd_preview = [
                 "ffmpeg", "-y",
                 "-i", video_path,
-                "-vf", "scale=854:480",
+                "-vf", "scale=640:-2",
                 "-c:v", "libx264",
-                "-preset", "ultrafast",
-                "-crf", "28",
+                "-b:v", "600k",
+                "-maxrate", "700k",
+                "-bufsize", "1200k",
+                "-preset", "veryfast",
                 "-c:a", "aac",
-                "-b:a", "96k",
+                "-b:a", "64k",
                 preview_path
             ]
             subprocess.run(cmd_preview, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
