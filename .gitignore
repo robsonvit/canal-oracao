@@ -44,3 +44,9 @@ assets/fonts/*.otf
 
 # Música de fundo cacheada localmente
 data/bg_music.mp3
+data/time_epoch.json
+
+# Scratch e artefatos locais temporários
+scratch/
+temp_artifact/
+temp_artifact_penultimate/

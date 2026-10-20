@@ -12,6 +12,7 @@ requests>=2.31.0
 
 # Imagens — geração de thumbnail
 Pillow>=10.0.0
+pinscrape>=5.2.0
 
 
 # YouTube Data API v3
