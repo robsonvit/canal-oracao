@@ -57,8 +57,11 @@ def main():
         salmo=dados["salmo"],
     )
 
-    # Substitui título e enriquece as tags com as dos concorrentes
-    dados["titulo"] = titulo_otimizado
+    # Substitui título e enriquece as tags com as dos concorrentes (apenas se válido)
+    if titulo_otimizado and len(re.sub(r'\|\s*\w+', '', titulo_otimizado).strip()) >= 10:
+        dados["titulo"] = titulo_otimizado
+    else:
+        print(f"⚠️ Título pesquisado inválido ('{titulo_otimizado}'). Mantendo título base: {dados['titulo']}")
 
     # ── Tratamento ROBUSTO das Tags ──
     import re

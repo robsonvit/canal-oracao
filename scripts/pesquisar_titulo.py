@@ -105,21 +105,19 @@ def _gerar_titulo_com_ia(titulos_ref: list[str], tema: str, salmo: str) -> str:
 
     prompt = f"""Você é especialista em SEO para canais cristãos no YouTube brasileiro.
 
-Analise os 3 títulos de vídeos mais visualizados sobre "{tema} - Salmo {salmo}" abaixo:
+Analise os 3 títulos de vídeos mais visualizados sobre "Salmo {salmo} — {tema}" abaixo:
 
 {titulos_formatados}
 
-Sua tarefa: Crie UM ÚNICO título para o "Canal Oração" que seja:
-- 90% similar em estrutura e palavras-chave aos títulos acima
-- Ligeiramente diferente para não ser cópia exata
-- Entre 60 e 80 caracteres
-- Em português brasileiro
-- Contenha emoção e apelo espiritual
-- NÃO use aspas, colchetes ou formatação especial
-- Responda APENAS com o título, sem explicações
-
-Exemplo do padrão esperado (baseado nos acima, mas adaptado):
-Se os títulos têm "ORAÇÃO PODEROSA DO SALMO 91", o seu deve ter estrutura similar.
+Sua tarefa: Crie UM ÚNICO título poderoso para o YouTube sobre o Salmo {salmo} que seja:
+- 90% similar em estrutura e termos aos títulos de referência acima
+- Entre 50 e 80 caracteres
+- Em português brasileiro, em LETRAS MAIÚSCULAS
+- Contenha forte apelo espiritual, bênção e fé
+- NÃO inclua nomes de canais ou pessoas (como "Canal Oração", "Bispo", etc.)
+- NÃO inclua o dia da semana (ele será adicionado automaticamente)
+- NÃO use aspas, colchetes ou explicações
+- Responda APENAS com o texto do título
 """
 
     DIAS_SEMANA = ["SEGUNDA", "TERÇA", "QUARTA", "QUINTA", "SEXTA", "SÁBADO", "DOMINGO"]
@@ -141,10 +139,15 @@ Se os títulos têm "ORAÇÃO PODEROSA DO SALMO 91", o seu deve ter estrutura si
             )
             titulo = response.choices[0].message.content.strip()
             titulo = titulo.strip('"\'').strip()
-            # Remove qualquer menção a "Canal Oração" e garante dia da semana
+            # Remove qualquer menção a "Canal Oração"
             titulo = re.sub(r'\s*\|\s*canal\s+ora[çc][ãa]o\s*', '', titulo, flags=re.IGNORECASE)
             titulo = re.sub(r'\s*-\s*canal\s+ora[çc][ãa]o\s*', '', titulo, flags=re.IGNORECASE)
             titulo = re.sub(r'canal\s+ora[çc][ãa]o', '', titulo, flags=re.IGNORECASE).strip()
+
+            # Se ficou vazio ou muito curto após a limpeza, usa o padrão do Salmo
+            if len(titulo) < 10:
+                titulo = f"PODEROSA ORAÇÃO DO SALMO {salmo} — {tema.upper()}"
+
             if not any(titulo.upper().endswith(d) for d in DIAS_SEMANA):
                 titulo = f"{titulo} | {dia_semana_abrev}"
             return titulo[:100]
@@ -152,7 +155,7 @@ Se os títulos têm "ORAÇÃO PODEROSA DO SALMO 91", o seu deve ter estrutura si
             continue
 
     # Fallback com dia da semana
-    return f"ORAÇÃO PODEROSA DO SALMO {salmo} — {tema.upper()} | {dia_semana_abrev}"
+    return f"PODEROSA ORAÇÃO DO SALMO {salmo} — {tema.upper()} | {dia_semana_abrev}"
 
 
 def _extrair_tags_concorrentes(videos: list[dict]) -> list[str]:
