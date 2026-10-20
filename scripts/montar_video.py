@@ -126,20 +126,18 @@ def montar_video(
     # ── Passo 2: Montar vídeo final em um único comando FFmpeg ────────────────
     output_path = os.path.join(output_dir, "video_final.mp4")
 
-    # Estilo das legendas: centralizada no meio da tela (Alignment=5 no padrão ASS), fonte nítida e visível
-    # Alignment: 5 = Middle-Center (centro absoluto horizontal e vertical)
+    # Estilo das legendas: fonte limpa (Arial), menor, com borda fina e sombra suave
+    # Alignment=10 (Centro da tela). Sem margens laterais para não quebrar o centro.
     subtitle_style = ",".join([
         "Fontname=Arial",
-        "FontSize=40",
-        "Bold=1",
+        "FontSize=35",
         "PrimaryColour=&H00FFFFFF",
         "OutlineColour=&H00000000",
         "BackColour=&H80000000",
         "BorderStyle=1",
-        "Outline=2.5",
-        "Shadow=1.0",
-        "Alignment=5",
-        "MarginV=0"
+        "Outline=1.5",
+        "Shadow=1.5",
+        "Alignment=10"
     ])
 
     srt_escaped = _escape_srt_path(legendas_srt)

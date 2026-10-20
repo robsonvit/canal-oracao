@@ -139,19 +139,19 @@ def main():
     )
 
     # ──────────────────────────────────────────────────────────────
-    # PASSO 6 — Upload para o YouTube (com agendamento)
+    # PASSO 6 — Enviar materiais para aprovação no Telegram
     # ──────────────────────────────────────────────────────────────
-    _titulo(6, 6, "Renomeando arquivo e agendando no YouTube...")
+    _titulo(6, 6, "Enviando materiais ao Telegram para aprovação...")
 
-    if not os.environ.get("YOUTUBE_REFRESH_TOKEN"):
-        print("⚠️  YOUTUBE_REFRESH_TOKEN não configurado.")
-        print("   Configure o secret no GitHub e rode novamente.")
-        print(f"\n   Vídeo salvo localmente em: {video_final}")
-    else:
-        from scripts.upload_youtube import upload_youtube
-        video_id = upload_youtube(video_final, thumbnail_path, dados)
-        print(f"\n🎉 PIPELINE CONCLUÍDO COM SUCESSO!")
-        print(f"   📺 https://www.youtube.com/watch?v={video_id}")
+    from scripts.enviar_telegram import enviar_aprovacao_telegram
+    enviar_aprovacao_telegram(
+        video_path     = video_final,
+        thumbnail_path = thumbnail_path,
+        dados_oracao   = dados,
+        output_dir     = OUTPUT_DIR,
+    )
+    print("\n🎉 MATERIAIS ENVIADOS AO TELEGRAM COM SUCESSO!")
+    print("   👉 Verifique o Telegram para avaliar título, thumbnail, descrição e vídeo antes do envio ao YouTube.")
 
     print("\n" + "═"*60)
     print("  📁 Arquivos gerados:")
