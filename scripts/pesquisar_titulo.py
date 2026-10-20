@@ -15,6 +15,7 @@ Requer:
 import os
 import re
 import requests
+from datetime import datetime
 from groq import Groq
 
 YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
