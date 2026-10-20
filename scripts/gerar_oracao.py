@@ -97,7 +97,7 @@ Ao final do texto, adicione exatamente esta linha separadora e então o JSON:
 ---JSON---
 {{
   "titulo": "PODEROSA ORAÇÃO DO SALMO {salmo_info['numero']} — {salmo_info['tema'].upper()} | {dia_semana_abrev}",
-  "descricao": "Escreva uma descrição profissional de 350 a 450 palavras seguindo EXATAMENTE esta estrutura:\n\nPARÁGRAFO 1 (Hook SEO - 3 linhas): Comece com a palavra-chave principal (ex: 'Oração poderosa do Salmo {salmo_info['numero']}') + benefício emocional imediato + convite urgente para assistir.\n\nPARÁGRAFO 2 (O que você vai receber - 4 linhas): Descreva o que o vídeo contém: o Salmo {salmo_info['numero']} completo, oração pela {salmo_info['tema']}, quebra de amarras ({salmo_info['keys']}), bênção sobre a família.\n\nPARÁGRAFO 3 (Instrução espiritual - 3 linhas): Oriente a pessoa a ouvir por 7 dias seguidos, levantar a mão direita, repetir as declarações em voz alta.\n\nPARÁGRAFO 4 (Engajamento - 3 linhas): Peça o LIKE explicando que ajuda o canal a alcançar mais pessoas que precisam de oração. Convide para SE INSCREVER para receber orações diárias. Peça para deixar nomes nos comentários.\n\nPARÁGRAFO 5 (Compartilhamento - 2 linhas): Incentive compartilhar com família e amigos que precisam de uma palavra de fé hoje.\n\nFINAL: Adicione exatamente estas hashtags numa linha separada:\n#oração #salmo{salmo_info['numero']} #oraçãoPoderosa #fé #Jesus #Deus #bênção #cura #proteção #oraçãoEvangélica #palavraDeDeus #milagre #quebraDeAmarras #oraçãoDoDia",
+  "descricao": "Oração poderosa baseada no Salmo {salmo_info['numero']} para trazer bênçãos, proteção e quebra de amarras na sua vida e na sua família.",
   "tags": ["oração", "salmo {salmo_info['numero']}", "oração poderosa", "proteção", "família", "bênção", "cura", "quebrar amarras", "vitória", "oração do dia", "Deus", "fé", "palavra de Deus", "oração evangélica"],
   "salmo": "{salmo_info['numero']}",
   "tema": "{salmo_info['tema']}"
@@ -155,35 +155,57 @@ Ao final do texto, adicione exatamente esta linha separadora e então o JSON:
         titulo = f"{titulo} | {dia_semana_abrev}"
     metadata["titulo"] = titulo
 
+    # ── Sanitização rigorosa da descrição (garantir que NUNCA vaze instruções de prompt) ──
+    descricao = metadata.get("descricao", "")
+    indicadores_prompt = [
+        "PARÁGRAFO", "Hook SEO", "Escreva uma descrição", "seguir EXATAMENTE",
+        "palavra-chave principal", "benefício emocional", "instrução espiritual",
+        "estrutura:", "Oração poderosa baseada no Salmo"
+    ]
+    if any(ind.lower() in descricao.lower() for ind in indicadores_prompt) or len(descricao.strip()) < 150:
+        print("[ORACAO] Descrição continha instruções de prompt ou era resumida. Aplicando descrição pastoral estruturada completa.")
+        metadata["descricao"] = _gerar_descricao_completa(salmo_info, dia_semana_abrev)
+
     return metadata
+
+
+def _gerar_descricao_completa(salmo_info: dict, dia_semana_abrev: str) -> str:
+    """Gera uma descrição pastoral de alta conversão para o YouTube, rica em SEO e sem instruções cruas."""
+    salmo_num = salmo_info["numero"]
+    tema = salmo_info["tema"]
+    keys = salmo_info["keys"]
+
+    return (
+        f"🙏 ORAÇÃO PODEROSA DO SALMO {salmo_num} — {tema.upper()} | {dia_semana_abrev}\n\n"
+        f"Esta oração poderosa baseada no Salmo {salmo_num} foi preparada especialmente para o seu momento de fé hoje. "
+        f"Se você precisa de {keys}, receba esta oração com o coração aberto. Não importa qual seja a tempestade, "
+        f"a aflição ou a batalha na sua vida: quando você se coloca na presença do Altíssimo, todo jugo cai por terra. "
+        f"Assista até o fim e receba a bênção de Deus agora mesmo.\n\n"
+        f"📖 NESTE VÍDEO VOCÊ VAI RECEBER:\n"
+        f"✅ A proclamação do Salmo {salmo_num} completo, versículo por versículo com reflexão pastoral\n"
+        f"✅ Oração de autoridade espiritual pela {tema}\n"
+        f"✅ Quebra de amarras espirituais, financeiras, familiares e de saúde\n"
+        f"✅ Clamor e envio de anjos para guardar a sua casa e toda a sua família\n"
+        f"✅ A oração do Pai Nosso completa para blindar o seu lar\n\n"
+        f"🕊️ INSTRUÇÃO ESPIRITUAL PARA VITÓRIA:\n"
+        f"Ouça esta oração por 7 dias consecutivos. Na Bíblia Sagrada, o número 7 representa a perfeição e o ciclo de vitória de Deus. "
+        f"No momento da oração forte, erga a sua mão direita aos céus e repita as declarações de fé com determinação.\n\n"
+        f"💬 COMENTE SEU NOME E PEDIDO DE ORAÇÃO:\n"
+        f"Deixe nos comentários o seu nome e os nomes de seus familiares. Todos os dias esses nomes são apresentados diante de Deus em oração.\n\n"
+        f"❤️ SEJA UM INSTRUMENTO DE BÊNÇÃO:\n"
+        f"1. Deixe o seu LIKE — assim o YouTube entende que esta palavra abençoa vidas e recomenda para mais pessoas aflitas.\n"
+        f"2. INSCREVA-SE no canal e ative o sininho para receber orações diárias de fé e vitória.\n"
+        f"3. COMPARTILHE este vídeo no grupo da família e com amigos que precisam de um milagre hoje.\n\n"
+        f"Que Jeová Rafá e o Deus de Israel abençoem grandemente a sua vida e toda a sua casa!\n\n"
+        f"#oração #salmo{salmo_num} #oraçãoPoderosa #fé #Jesus #Deus #bênção #cura #proteção #oraçãoEvangélica #palavraDeDeus #milagre #quebraDeAmarras #oraçãoDoDia"
+    )
 
 
 def _metadata_padrao(salmo_info: dict) -> dict:
     dia_semana_abrev = DIAS_SEMANA[datetime.datetime.now().weekday()]
-    descricao_seo = (
-        f"🙏 Oração Poderosa do Salmo {salmo_info['numero']} — {salmo_info['tema']}\n\n"
-        f"Você está recebendo uma oração especial baseada no Salmo {salmo_info['numero']}, "
-        f"preparada especialmente para trazer {salmo_info['keys']} para a sua vida e de toda a sua família. "
-        f"Assista até o final e receba a bênção de Deus agora mesmo.\n\n"
-        f"Nesta oração você vai receber:\n"
-        f"✅ O Salmo {salmo_info['numero']} completo, versículo por versículo\n"
-        f"✅ Oração poderosa pela {salmo_info['tema']}\n"
-        f"✅ Quebra de amarras espirituais, financeiras e de saúde\n"
-        f"✅ Bênção sobre sua casa, família e todos os seus filhos\n\n"
-        f"👉 Ore por 7 dias seguidos para potencializar os resultados. "
-        f"Levante sua mão direita ao céu e repita as declarações em voz alta.\n\n"
-        f"❤️ Se esta oração te abençoou, dê um LIKE — isso avisa ao YouTube que este conteúdo "
-        f"precisa chegar a mais pessoas que precisam de uma palavra de fé. "
-        f"INSCREVA-SE no canal para receber novas orações todos os dias. "
-        f"Deixe nos comentários o SEU NOME e o de seus familiares para receber oração especial.\n\n"
-        f"🙌 Compartilhe com alguém que precisa de fé e de uma oração poderosa hoje.\n\n"
-        f"#oração #salmo{salmo_info['numero']} #oraçãoPoderosa #fé "
-        f"#Jesus #Deus #bênção #cura #proteção #oraçãoEvangélica #palavraDeDeus #milagre "
-        f"#quebraDeAmarras #oraçãoDoDia"
-    )
     return {
         "titulo": f"PODEROSA ORAÇÃO DO SALMO {salmo_info['numero']} — {salmo_info['tema'].upper()} | {dia_semana_abrev}",
-        "descricao": descricao_seo,
+        "descricao": _gerar_descricao_completa(salmo_info, dia_semana_abrev),
         "tags": [
             "oração", f"salmo {salmo_info['numero']}", "oração poderosa",
             "proteção", "família", "bênção", "cura", "quebrar amarras",

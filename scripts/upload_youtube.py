@@ -119,7 +119,16 @@ def upload_youtube(
         titulo = f"{titulo} | {dia_semana_abrev}"
     titulo = titulo[:100]
 
-    descricao = metadata.get("descricao", "")[:5000]
+    descricao = metadata.get("descricao", "")
+    indicadores_prompt = ["PARÁGRAFO", "Hook SEO", "Escreva uma descrição", "seguir EXATAMENTE", "palavra-chave principal", "estrutura:"]
+    if any(ind.lower() in descricao.lower() for ind in indicadores_prompt) or len(descricao.strip()) < 150:
+        print("⚠️ Descrição continha instruções brutas ou era curta. Regenerando com template pastoral completo...")
+        salmo = metadata.get("salmo", "91")
+        tema = metadata.get("tema", "Proteção Divina")
+        from scripts.gerar_oracao import _gerar_descricao_completa
+        salmo_info = {"numero": salmo, "tema": tema, "keys": "proteção, paz, vitória, bênção"}
+        descricao = _gerar_descricao_completa(salmo_info, dia_semana_abrev)
+    descricao = descricao[:5000]
     tags      = metadata.get("tags", [])
 
     # ── Renomear arquivo de vídeo com o título ───────────────────────────────
