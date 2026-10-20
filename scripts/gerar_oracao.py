@@ -101,12 +101,31 @@ Ao final do texto, adicione exatamente esta linha separadora e então o JSON:
 }}
 """
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.72,
-        max_tokens=4096,
-    )
+    modelos_candidatos = [
+        "openai/gpt-oss-120b",
+        "qwen/qwen3.8-27b",
+        "openai/gpt-oss-20b",
+    ]
+
+    response = None
+    ultimo_erro = None
+    for modelo in modelos_candidatos:
+        try:
+            print(f"[GROQ] Tentando modelo '{modelo}'...")
+            response = client.chat.completions.create(
+                model=modelo,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.72,
+                max_tokens=4096,
+            )
+            print(f"[GROQ] Sucesso com o modelo '{modelo}'!")
+            break
+        except Exception as e:
+            print(f"[GROQ] Falha no modelo '{modelo}': {e}")
+            ultimo_erro = e
+
+    if not response:
+        raise RuntimeError(f"Nenhum modelo da Groq respondeu com sucesso. Último erro: {ultimo_erro}")
 
     content = response.choices[0].message.content.strip()
 
