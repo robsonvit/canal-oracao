@@ -11,6 +11,7 @@ Uso:
 import os
 import sys
 import json
+import re
 import traceback
 
 # Garante que o diretório raiz do projeto esteja no path
@@ -64,7 +65,6 @@ def main():
         print(f"⚠️ Título pesquisado inválido ('{titulo_otimizado}'). Mantendo título base: {dados['titulo']}")
 
     # ── Tratamento ROBUSTO das Tags ──
-    import re
     tags_combinadas = tags_pesquisadas + dados.get("tags", [])
     tags_validas = []
     
