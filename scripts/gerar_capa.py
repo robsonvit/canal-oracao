@@ -35,38 +35,36 @@ DOURADO      = (255, 215, 0)
 PRETO        = (0, 0, 0)
 PRETO_SUAVE  = (10, 10, 10)
 
-# Dicionário curado de termos de busca no Pinterest (priorizando 16:9, wallpapers e HD)
+# Dicionário curado de termos de busca no Pinterest (priorizando 16:9, arte sacra de Jesus Cristo e alta definição)
 TERMOS_RELIGIOSOS_PINTEREST = {
     "jesus": [
-        "Jesus wallpaper 16:9",
-        "Jesus Cristo arte 16:9",
-        "Jesus Christ artwork wallpaper 4k",
-        "Jesus orando 16:9",
-        "Jesus misericordioso pintura hd",
+        "Jesus Cristo pintura classica wallpaper 16:9",
+        "Jesus Christ artwork wallpaper 4k 16:9",
+        "Jesus Cristo olhar misericordioso pintura 16:9",
+        "Jesus Cristo luz divina wallpaper 16:9",
         "Sagrado Coracao de Jesus arte 16:9",
-        "Jesus praying Gethsemane wallpaper",
-        "Jesus Cristo luz divina wallpaper",
+        "Jesus orando Getsemani pintura wallpaper 16:9",
+        "Jesus Cristo ressuscitado arte sacra 16:9",
+        "Jesus Cristo salvador pintura hd 16:9",
     ],
     "biblia": [
-        "biblia sagrada wallpaper 16:9",
+        "biblia sagrada aberta altar velas wallpaper 16:9",
         "open holy bible candle light wallpaper 16:9",
-        "biblia aberta luz divina wallpaper",
-        "biblia e cruz luz 16:9",
-        "holy bible church altar wallpaper hd",
+        "biblia aberta luz divina wallpaper 16:9",
+        "biblia sagrada e cruz luz celestial 16:9",
+        "holy bible church altar wallpaper hd 16:9",
     ],
     "oracao": [
-        "pessoa orando a Deus 16:9",
-        "maos em oracao luz divina wallpaper 16:9",
-        "praying hands god light 16:9",
-        "homem orando montanha por do sol 16:9",
-        "mulher orando com fe luz 16:9",
-        "oracao joelhos dobrados luz de Deus",
+        "Jesus Cristo orando pintura classica 16:9",
+        "Jesus orando Getsemani wallpaper hd",
+        "Jesus Cristo com ovelha bom pastor pintura 16:9",
+        "Jesus abencoando pintura arte sacra 16:9",
+        "Jesus Cristo perdoa pecadora pintura arte 16:9",
     ],
     "pomba": [
-        "pomba branca espirito santo wallpaper 16:9",
-        "white dove holy spirit wallpaper hd",
-        "pomba da paz luz divina wallpaper 16:9",
-        "espirito santo luz pentecostes wallpaper",
+        "espirito santo pomba branca luz celestial 16:9",
+        "white dove holy spirit wallpaper hd 16:9",
+        "espirito santo pentecostes arte sacra wallpaper 16:9",
     ]
 }
 
@@ -77,27 +75,23 @@ TERMOS_RELIGIOSOS_PINTEREST = {
 
 def _selecionar_queries_pinterest(tema: str, titulo: str) -> list[str]:
     """
-    Seleciona as queries mais adequadas do Pinterest com base no tema, título ou salmo.
-    Se não houver termo específico, mescla todas as categorias para garantir variedade.
+    Seleciona as queries mais adequadas do Pinterest.
+    Prioriza arte sacra marcante de Jesus Cristo e Bíblia sagrada.
     """
     texto = (tema or "").lower() + " " + (titulo or "").lower()
     queries = []
 
-    if any(k in texto for k in ["pomba", "espirito santo", "espírito santo", "pentecostes", "consolador"]):
+    if any(k in texto for k in ["pomba", "espirito santo", "espírito santo", "pentecostes"]):
         queries.extend(TERMOS_RELIGIOSOS_PINTEREST["pomba"])
-        queries.extend(TERMOS_RELIGIOSOS_PINTEREST["oracao"])
-    elif any(k in texto for k in ["biblia", "bíblia", "palavra", "leitura", "versiculo", "versículo", "escritura"]):
-        queries.extend(TERMOS_RELIGIOSOS_PINTEREST["biblia"])
         queries.extend(TERMOS_RELIGIOSOS_PINTEREST["jesus"])
-    elif any(k in texto for k in ["clamor", "joelhos", "pedir", "suplica", "súplica", "intercessao", "intercessão"]):
-        queries.extend(TERMOS_RELIGIOSOS_PINTEREST["oracao"])
+    elif any(k in texto for k in ["biblia", "bíblia", "palavra", "versiculo", "versículo"]):
+        queries.extend(TERMOS_RELIGIOSOS_PINTEREST["biblia"])
         queries.extend(TERMOS_RELIGIOSOS_PINTEREST["jesus"])
     else:
-        # Padrão equilibrado: inclui Jesus, oração, bíblia e pomba
+        # Padrão de máxima conversão: Jesus Cristo e oração solene
         queries.extend(TERMOS_RELIGIOSOS_PINTEREST["jesus"])
         queries.extend(TERMOS_RELIGIOSOS_PINTEREST["oracao"])
         queries.extend(TERMOS_RELIGIOSOS_PINTEREST["biblia"])
-        queries.extend(TERMOS_RELIGIOSOS_PINTEREST["pomba"])
 
     random.shuffle(queries)
     return queries
@@ -105,16 +99,16 @@ def _selecionar_queries_pinterest(tema: str, titulo: str) -> list[str]:
 
 def _buscar_imagem_pinterest(tema: str, titulo: str) -> Image.Image | None:
     """
-    Busca imagens religiosas apenas no Pinterest.
-    Avalia a resolução e a proporção de aspecto, priorizando as mais próximas de 16:9 (1.78).
+    Busca imagens religiosas exclusivamente no Pinterest.
+    Prioriza fortemente imagens horizontais e 16:9 (proporção ~1.78) de arte sacra / Jesus Cristo.
     """
     queries = _selecionar_queries_pinterest(tema, titulo)
     p = Pinterest(proxies={}, sleep_time=0.3)
 
-    for q in queries[:4]:
+    for q in queries[:5]:
         print(f"[PINTEREST] Buscando: '{q}'...")
         try:
-            urls = p.search(q, 6)
+            urls = p.search(q, 8)
             if not urls:
                 continue
 
@@ -126,19 +120,28 @@ def _buscar_imagem_pinterest(tema: str, titulo: str) -> Image.Image | None:
                         img = Image.open(io.BytesIO(resp.content)).convert("RGB")
                         w, h = img.size
                         # Filtra imagens muito pequenas
-                        if w >= 450 and h >= 350:
+                        if w >= 450 and h >= 300:
                             aspect = w / h
-                            # Score prioriza aspect ratio 16:9 (1.777) e boa resolução
-                            score = 10.0 - abs(aspect - 1.777) + (min(w, 1920) / 1000.0)
+                            # Pontuação: prioriza fortemente imagens horizontais e 16:9
+                            if aspect >= 1.3:
+                                # Imagem horizontal (16:9 ideal aspect ~ 1.777)
+                                score = 100.0 - (abs(aspect - 1.777) * 20.0) + (w / 100.0)
+                            elif aspect >= 1.0:
+                                # Imagem quadrada ou quase horizontal
+                                score = 40.0 + (w / 100.0)
+                            else:
+                                # Imagem vertical (penalidade severa para preferir horizontal)
+                                score = 5.0 + (w / 200.0)
+
                             candidatas.append((score, aspect, img, url))
                 except Exception:
                     continue
 
             if candidatas:
-                # Escolhe a melhor imagem candidata
+                # Escolhe a melhor imagem (horizontais 16:9 vencem)
                 candidatas.sort(key=lambda x: x[0], reverse=True)
                 melhor = candidatas[0]
-                print(f"[PINTEREST] Imagem selecionada: {melhor[2].size} (proporção {melhor[1]:.2f})")
+                print(f"[PINTEREST] Imagem selecionada: {melhor[2].size} (proporção {melhor[1]:.2f}) | Score: {melhor[0]:.1f} | URL: {melhor[3][:70]}...")
                 return melhor[2]
 
         except Exception as e:
@@ -156,12 +159,15 @@ def _buscar_imagem_pinterest(tema: str, titulo: str) -> Image.Image | None:
 def _obter_fonte_impact(tamanho: int) -> ImageFont.FreeTypeFont:
     """
     Carrega especificamente a fonte IMPACT (pesada e condensada para YouTube thumbs).
+    Prioriza o arquivo local assets/fonts/impact.ttf versionado no projeto.
     """
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     caminhos = [
+        os.path.join(base_dir, "assets", "fonts", "impact.ttf"),
+        os.path.join(base_dir, "assets", "fonts", "IMPACT.TTF"),
         "C:/Windows/Fonts/impact.ttf",
         "C:/Windows/Fonts/IMPACT.TTF",
-        "C:/Windows/Fonts/ariblk.ttf",       # Arial Black (fallback Windows)
-        "/usr/share/fonts/truetype/msttcorefonts/Impact.ttf", # Linux Impact
+        "/usr/share/fonts/truetype/msttcorefonts/Impact.ttf",
         "/usr/share/fonts/truetype/msttcorefonts/impact.ttf",
         "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
@@ -169,13 +175,12 @@ def _obter_fonte_impact(tamanho: int) -> ImageFont.FreeTypeFont:
     for caminho in caminhos:
         if os.path.exists(caminho):
             try:
-                return ImageFont.truetype(caminho, tamanho)
-            except Exception:
+                font = ImageFont.truetype(caminho, tamanho)
+                print(f"[FONTE] Impact carregada: {caminho} (tamanho {tamanho})")
+                return font
+            except Exception as e:
                 continue
-    try:
-        return ImageFont.load_default()
-    except Exception:
-        pass
+    return ImageFont.load_default()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -325,12 +330,14 @@ def gerar_thumbnail(salmo: str, tema: str, titulo: str, output_dir: str = "outpu
     elif salmo and len(salmo.strip()) > 0:
         num_salmo = salmo.replace("Salmo", "").replace("SALMO", "").strip()
         linhas = ["ORAÇÃO DO", f"SALMO {num_salmo}"]
-        palavras = [p for p in tema_upper.split() if len(p) > 3 and p not in ["PARA", "COM", "UMA"]]
-        linhas.append(palavras[0] if palavras else "PODEROSA")
+        stopwords = {"PARA", "COM", "UMA", "DEUS", "NOSSO", "NOSSA", "SEU", "SUA", "SOBRE", "PELO", "PELA", "MEU", "MINHA"}
+        palavras_impacto = [p for p in tema_upper.split() if len(p) > 2 and p not in stopwords]
+        linhas.append(palavras_impacto[0] if palavras_impacto else "PODEROSA")
     else:
         linhas = ["ORAÇÃO", "DE HOJE"]
-        palavras = [p for p in tema_upper.split() if len(p) > 3]
-        linhas.append(palavras[0] if palavras else "PODEROSA")
+        stopwords = {"PARA", "COM", "UMA", "DEUS", "NOSSO", "NOSSA", "SEU", "SUA"}
+        palavras_impacto = [p for p in tema_upper.split() if len(p) > 2 and p not in stopwords]
+        linhas.append(palavras_impacto[0] if palavras_impacto else "PODEROSA")
 
     # 4. Renderizar textos com a fonte IMPACT no lado esquerdo
     x_pos = 70

@@ -106,8 +106,19 @@ def upload_youtube(
     creds   = _obter_credenciais()
     youtube = build("youtube", "v3", credentials=creds, cache_discovery=False)
 
+    DIAS_SEMANA = ["SEGUNDA", "TERÇA", "QUARTA", "QUINTA", "SEXTA", "SÁBADO", "DOMINGO"]
+    dia_semana_abrev = DIAS_SEMANA[datetime.now().weekday()]
+
     # ── Metadados do vídeo ───────────────────────────────────────────────────
-    titulo    = metadata.get("titulo", "Oração Poderosa — Canal Oração")[:100]
+    raw_titulo = metadata.get("titulo", f"Oração Poderosa | {dia_semana_abrev}")
+    # Remove "Canal Oração" e garante que termine com "| DIA_DA_SEMANA"
+    titulo = re.sub(r'\s*\|\s*canal\s+ora[çc][ãa]o\s*', '', raw_titulo, flags=re.IGNORECASE)
+    titulo = re.sub(r'\s*-\s*canal\s+ora[çc][ãa]o\s*', '', titulo, flags=re.IGNORECASE)
+    titulo = re.sub(r'canal\s+ora[çc][ãa]o', '', titulo, flags=re.IGNORECASE).strip()
+    if not any(titulo.upper().endswith(d) for d in DIAS_SEMANA):
+        titulo = f"{titulo} | {dia_semana_abrev}"
+    titulo = titulo[:100]
+
     descricao = metadata.get("descricao", "")[:5000]
     tags      = metadata.get("tags", [])
 

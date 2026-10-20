@@ -39,7 +39,7 @@ env/
 *.log
 
 # Assets de fontes baixadas (reinstaladas automaticamente)
-assets/fonts/*.ttf
+# assets/fonts/*.ttf (impact.ttf é versionado para GitHub Actions)
 assets/fonts/*.otf
 
 # Música de fundo cacheada localmente

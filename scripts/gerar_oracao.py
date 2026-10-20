@@ -1,9 +1,12 @@
 import os
+import re
 import json
 import random
 import datetime
 
 from groq import Groq
+
+DIAS_SEMANA = ["SEGUNDA", "TERÇA", "QUARTA", "QUINTA", "SEXTA", "SÁBADO", "DOMINGO"]
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Base de dados de salmos temáticos (rotação automática por dia do ano)
@@ -26,15 +29,15 @@ SALMOS = [
 
 def gerar_oracao() -> dict:
     """
-    Chama a API Groq (llama-3.3-70b-versatile) e gera uma oração
-    completa no estilo do canal Bispo Bruno Leonardo.
+    Chama a API Groq e gera uma oração completa no estilo do canal Bispo Bruno Leonardo.
     Retorna um dict com: oracao_texto, titulo, descricao, tags, salmo, tema.
     """
     client = Groq(api_key=os.environ["GROQ_API_KEY"])
 
-    # Seleciona o salmo do dia de forma rotativa
+    # Seleciona o salmo do dia de forma rotativa e dia da semana
     dia_do_ano = datetime.datetime.now().timetuple().tm_yday
     salmo_info = SALMOS[dia_do_ano % len(SALMOS)]
+    dia_semana_abrev = DIAS_SEMANA[datetime.datetime.now().weekday()]
 
     prompt = f"""Você é um pastor cristão evangélico brasileiro que grava orações poderosas no YouTube no estilo do canal "Bispo Bruno Leonardo".
 
@@ -93,9 +96,9 @@ Ao final do texto, adicione exatamente esta linha separadora e então o JSON:
 
 ---JSON---
 {{
-  "titulo": "PODEROSA ORAÇÃO DO SALMO {salmo_info['numero']} — {salmo_info['tema'].upper()} | Canal Oração",
-  "descricao": "Escreva uma descrição profissional de 350 a 450 palavras seguindo EXATAMENTE esta estrutura:\n\nPARÁGRAFO 1 (Hook SEO - 3 linhas): Comece com a palavra-chave principal (ex: 'Oração poderosa do Salmo {salmo_info['numero']}') + benefício emocional imediato + convite urgente para assistir.\n\nPARÁGRAFO 2 (O que você vai receber - 4 linhas): Descreva o que o vídeo contém: o Salmo {salmo_info['numero']} completo, oração pela {salmo_info['tema']}, quebra de amarras ({salmo_info['keys']}), bênção sobre a família.\n\nPARÁGRAFO 3 (Instrução espiritual - 3 linhas): Oriente a pessoa a ouvir por 7 dias seguidos, levantar a mão direita, repetir as declarações em voz alta.\n\nPARÁGRAFO 4 (Engajamento - 3 linhas): Peça o LIKE explicando que ajuda o canal a alcançar mais pessoas que precisam de oração. Convide para SE INSCREVER para receber orações diárias. Peça para deixar nomes nos comentários.\n\nPARÁGRAFO 5 (Compartilhamento - 2 linhas): Incentive compartilhar com família e amigos que precisam de uma palavra de fé hoje.\n\nFINAL: Adicione exatamente estas hashtags numa linha separada:\n#oração #salmo{salmo_info['numero']} #oraçãoPoderosa #canalOração #fé #Jesus #Deus #bênção #cura #proteção #oraçãoEvangélica #palavraDeDeus #milagre #quebraDeAmarras #oraçãoDoDia",
-  "tags": ["oração", "salmo {salmo_info['numero']}", "oração poderosa", "proteção", "família", "bênção", "cura", "quebrar amarras", "vitória", "canal oração", "oração do dia", "Deus", "fé", "palavra de Deus", "oração evangélica"],
+  "titulo": "PODEROSA ORAÇÃO DO SALMO {salmo_info['numero']} — {salmo_info['tema'].upper()} | {dia_semana_abrev}",
+  "descricao": "Escreva uma descrição profissional de 350 a 450 palavras seguindo EXATAMENTE esta estrutura:\n\nPARÁGRAFO 1 (Hook SEO - 3 linhas): Comece com a palavra-chave principal (ex: 'Oração poderosa do Salmo {salmo_info['numero']}') + benefício emocional imediato + convite urgente para assistir.\n\nPARÁGRAFO 2 (O que você vai receber - 4 linhas): Descreva o que o vídeo contém: o Salmo {salmo_info['numero']} completo, oração pela {salmo_info['tema']}, quebra de amarras ({salmo_info['keys']}), bênção sobre a família.\n\nPARÁGRAFO 3 (Instrução espiritual - 3 linhas): Oriente a pessoa a ouvir por 7 dias seguidos, levantar a mão direita, repetir as declarações em voz alta.\n\nPARÁGRAFO 4 (Engajamento - 3 linhas): Peça o LIKE explicando que ajuda o canal a alcançar mais pessoas que precisam de oração. Convide para SE INSCREVER para receber orações diárias. Peça para deixar nomes nos comentários.\n\nPARÁGRAFO 5 (Compartilhamento - 2 linhas): Incentive compartilhar com família e amigos que precisam de uma palavra de fé hoje.\n\nFINAL: Adicione exatamente estas hashtags numa linha separada:\n#oração #salmo{salmo_info['numero']} #oraçãoPoderosa #fé #Jesus #Deus #bênção #cura #proteção #oraçãoEvangélica #palavraDeDeus #milagre #quebraDeAmarras #oraçãoDoDia",
+  "tags": ["oração", "salmo {salmo_info['numero']}", "oração poderosa", "proteção", "família", "bênção", "cura", "quebrar amarras", "vitória", "oração do dia", "Deus", "fé", "palavra de Deus", "oração evangélica"],
   "salmo": "{salmo_info['numero']}",
   "tema": "{salmo_info['tema']}"
 }}
@@ -142,10 +145,21 @@ Ao final do texto, adicione exatamente esta linha separadora e então o JSON:
         metadata = _metadata_padrao(salmo_info)
 
     metadata["oracao_texto"] = oracao_texto
+
+    # ── Sanitização rigorosa do título (sem "Canal Oração", com DIA DA SEMANA) ──
+    titulo = metadata.get("titulo", "")
+    titulo = re.sub(r'\s*\|\s*canal\s+ora[çc][ãa]o\s*', '', titulo, flags=re.IGNORECASE)
+    titulo = re.sub(r'\s*-\s*canal\s+ora[çc][ãa]o\s*', '', titulo, flags=re.IGNORECASE)
+    titulo = re.sub(r'canal\s+ora[çc][ãa]o', '', titulo, flags=re.IGNORECASE).strip()
+    if not any(titulo.upper().endswith(d) for d in DIAS_SEMANA):
+        titulo = f"{titulo} | {dia_semana_abrev}"
+    metadata["titulo"] = titulo
+
     return metadata
 
 
 def _metadata_padrao(salmo_info: dict) -> dict:
+    dia_semana_abrev = DIAS_SEMANA[datetime.datetime.now().weekday()]
     descricao_seo = (
         f"🙏 Oração Poderosa do Salmo {salmo_info['numero']} — {salmo_info['tema']}\n\n"
         f"Você está recebendo uma oração especial baseada no Salmo {salmo_info['numero']}, "
@@ -163,17 +177,17 @@ def _metadata_padrao(salmo_info: dict) -> dict:
         f"INSCREVA-SE no canal para receber novas orações todos os dias. "
         f"Deixe nos comentários o SEU NOME e o de seus familiares para receber oração especial.\n\n"
         f"🙌 Compartilhe com alguém que precisa de fé e de uma oração poderosa hoje.\n\n"
-        f"#oração #salmo{salmo_info['numero']} #oraçãoPoderosa #canalOração #fé "
+        f"#oração #salmo{salmo_info['numero']} #oraçãoPoderosa #fé "
         f"#Jesus #Deus #bênção #cura #proteção #oraçãoEvangélica #palavraDeDeus #milagre "
         f"#quebraDeAmarras #oraçãoDoDia"
     )
     return {
-        "titulo": f"PODEROSA ORAÇÃO DO SALMO {salmo_info['numero']} — {salmo_info['tema'].upper()} | Canal Oração",
+        "titulo": f"PODEROSA ORAÇÃO DO SALMO {salmo_info['numero']} — {salmo_info['tema'].upper()} | {dia_semana_abrev}",
         "descricao": descricao_seo,
         "tags": [
             "oração", f"salmo {salmo_info['numero']}", "oração poderosa",
             "proteção", "família", "bênção", "cura", "quebrar amarras",
-            "vitória", "canal oração", "oração do dia", "Deus", "fé",
+            "vitória", "oração do dia", "Deus", "fé",
             "Jesus", "palavra de Deus", "milagre", "oração evangélica",
         ],
         "salmo": salmo_info["numero"],
