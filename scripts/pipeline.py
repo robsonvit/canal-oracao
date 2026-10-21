@@ -139,19 +139,40 @@ def main():
     )
 
     # ──────────────────────────────────────────────────────────────
-    # PASSO 6 — Enviar materiais para aprovação no Telegram
+    # PASSO 6 — Upload para o YouTube (Canal JESUS VIVE)
     # ──────────────────────────────────────────────────────────────
-    _titulo(6, 6, "Enviando materiais ao Telegram para aprovação...")
+    _titulo(6, 6, "Renomeando arquivo e postando/agendando no YouTube (JESUS VIVE)...")
 
-    from scripts.enviar_telegram import enviar_aprovacao_telegram
-    enviar_aprovacao_telegram(
-        video_path     = video_final,
-        thumbnail_path = thumbnail_path,
-        dados_oracao   = dados,
-        output_dir     = OUTPUT_DIR,
-    )
-    print("\n🎉 MATERIAIS ENVIADOS AO TELEGRAM COM SUCESSO!")
-    print("   👉 Verifique o Telegram para avaliar título, thumbnail, descrição e vídeo antes do envio ao YouTube.")
+    if not os.environ.get("YOUTUBE_REFRESH_TOKEN"):
+        print("⚠️  YOUTUBE_REFRESH_TOKEN não configurado.")
+        print("   Configure o secret no GitHub e rode novamente.")
+        print(f"\n   Vídeo salvo localmente em: {video_final}")
+    else:
+        from scripts.upload_youtube import upload_youtube
+        video_id = upload_youtube(video_final, thumbnail_path, dados)
+        print(f"\n🎉 PIPELINE CONCLUÍDO COM SUCESSO!")
+        print(f"   📺 https://www.youtube.com/watch?v={video_id}")
+
+        # Envia também notificação de publicação com o link para o Telegram (se configurado)
+        if os.environ.get("TELEGRAM_BOT_TOKEN") and os.environ.get("TELEGRAM_CHAT_ID"):
+            try:
+                import requests
+                token = os.environ["TELEGRAM_BOT_TOKEN"]
+                chat_id = os.environ["TELEGRAM_CHAT_ID"]
+                msg = (
+                    f"🎉 NOVO VÍDEO AGENDADO NO YOUTUBE (JESUS VIVE)!\n\n"
+                    f"📌 {dados.get('titulo')}\n\n"
+                    f"📺 Assista: https://www.youtube.com/watch?v={video_id}\n\n"
+                    f"📖 Salmo: {dados.get('salmo')} — {dados.get('tema')}"
+                )
+                requests.post(
+                    f"https://api.telegram.org/bot{token}/sendMessage",
+                    json={"chat_id": chat_id, "text": msg},
+                    timeout=30
+                )
+                print("📲 Notificação de postagem enviada ao Telegram!")
+            except Exception as e_tg:
+                print(f"⚠️ Não foi possível enviar notificação ao Telegram: {e_tg}")
 
     print("\n" + "═"*60)
     print("  📁 Arquivos gerados:")
