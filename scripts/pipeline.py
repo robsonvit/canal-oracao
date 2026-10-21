@@ -150,29 +150,52 @@ def main():
     else:
         from scripts.upload_youtube import upload_youtube
         video_id = upload_youtube(video_final, thumbnail_path, dados)
-        print(f"\n🎉 PIPELINE CONCLUÍDO COM SUCESSO!")
-        print(f"   📺 https://www.youtube.com/watch?v={video_id}")
+        if video_id:
+            print(f"\n🎉 PIPELINE CONCLUÍDO COM SUCESSO!")
+            print(f"   📺 https://www.youtube.com/watch?v={video_id}")
 
-        # Envia também notificação de publicação com o link para o Telegram (se configurado)
-        if os.environ.get("TELEGRAM_BOT_TOKEN") and os.environ.get("TELEGRAM_CHAT_ID"):
-            try:
-                import requests
-                token = os.environ["TELEGRAM_BOT_TOKEN"]
-                chat_id = os.environ["TELEGRAM_CHAT_ID"]
-                msg = (
-                    f"🎉 NOVO VÍDEO AGENDADO NO YOUTUBE (JESUS VIVE)!\n\n"
-                    f"📌 {dados.get('titulo')}\n\n"
-                    f"📺 Assista: https://www.youtube.com/watch?v={video_id}\n\n"
-                    f"📖 Salmo: {dados.get('salmo')} — {dados.get('tema')}"
-                )
-                requests.post(
-                    f"https://api.telegram.org/bot{token}/sendMessage",
-                    json={"chat_id": chat_id, "text": msg},
-                    timeout=30
-                )
-                print("📲 Notificação de postagem enviada ao Telegram!")
-            except Exception as e_tg:
-                print(f"⚠️ Não foi possível enviar notificação ao Telegram: {e_tg}")
+            # Envia também notificação de publicação com o link para o Telegram (se configurado)
+            if os.environ.get("TELEGRAM_BOT_TOKEN") and os.environ.get("TELEGRAM_CHAT_ID"):
+                try:
+                    import requests
+                    token = os.environ["TELEGRAM_BOT_TOKEN"]
+                    chat_id = os.environ["TELEGRAM_CHAT_ID"]
+                    msg = (
+                        f"🎉 NOVO VÍDEO AGENDADO NO YOUTUBE (JESUS VIVE)!\n\n"
+                        f"📌 {dados.get('titulo')}\n\n"
+                        f"📺 Assista: https://www.youtube.com/watch?v={video_id}\n\n"
+                        f"📖 Salmo: {dados.get('salmo')} — {dados.get('tema')}"
+                    )
+                    requests.post(
+                        f"https://api.telegram.org/bot{token}/sendMessage",
+                        json={"chat_id": chat_id, "text": msg},
+                        timeout=30
+                    )
+                    print("📲 Notificação de postagem enviada ao Telegram!")
+                except Exception as e_tg:
+                    print(f"⚠️ Não foi possível enviar notificação ao Telegram: {e_tg}")
+        else:
+            print("\n⚠️ O upload no YouTube não foi concluído nesta execução (limite diário do canal atingido).")
+            print("   O vídeo completo foi preservado e está disponível nos artefatos desta run.")
+            if os.environ.get("TELEGRAM_BOT_TOKEN") and os.environ.get("TELEGRAM_CHAT_ID"):
+                try:
+                    import requests
+                    token = os.environ["TELEGRAM_BOT_TOKEN"]
+                    chat_id = os.environ["TELEGRAM_CHAT_ID"]
+                    msg = (
+                        f"⚠️ AVISO: VÍDEO DO CANAL JESUS VIVE GERADO!\n\n"
+                        f"📌 {dados.get('titulo')}\n\n"
+                        f"O vídeo foi montado com sucesso, mas o canal atingiu o limite de envios do YouTube nas últimas 24h (uploadLimitExceeded).\n"
+                        f"O YouTube liberará novos uploads automaticamente na próxima janela de 24 horas."
+                    )
+                    requests.post(
+                        f"https://api.telegram.org/bot{token}/sendMessage",
+                        json={"chat_id": chat_id, "text": msg},
+                        timeout=30
+                    )
+                    print("📲 Notificação de aviso sobre cota enviada ao Telegram!")
+                except Exception:
+                    pass
 
     print("\n" + "═"*60)
     print("  📁 Arquivos gerados:")

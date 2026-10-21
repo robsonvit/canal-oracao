@@ -24,6 +24,7 @@ from datetime import datetime, timezone, timedelta
 
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
+from googleapiclient.errors import HttpError
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 
@@ -178,31 +179,43 @@ def upload_youtube(
         media_body=media,
     )
 
-    response = None
-    while response is None:
-        status, response = request.next_chunk()
-        if status:
-            pct = int(status.progress() * 100)
-            print(f"   Upload: {pct}%", end="\r")
+    try:
+        response = None
+        while response is None:
+            status, response = request.next_chunk()
+            if status:
+                pct = int(status.progress() * 100)
+                print(f"   Upload: {pct}%", end="\r")
 
-    video_id = response.get("id", "")
-    print(f"\n✅ Vídeo agendado! ID: {video_id}")
-    print(f"   🕐 Publicação agendada para: {hora_local}")
-    print(f"   📺 https://www.youtube.com/watch?v={video_id}")
+        video_id = response.get("id", "")
+        print(f"\n✅ Vídeo agendado! ID: {video_id}")
+        print(f"   🕐 Publicação agendada para: {hora_local}")
+        print(f"   📺 https://www.youtube.com/watch?v={video_id}")
 
-    # ── Upload da thumbnail ──────────────────────────────────────────────────
-    if video_id and os.path.exists(thumbnail_path):
-        print("🖼️  Enviando thumbnail personalizada...")
-        try:
-            youtube.thumbnails().set(
-                videoId=video_id,
-                media_body=MediaFileUpload(thumbnail_path, mimetype="image/jpeg"),
-            ).execute()
-            print("✅ Thumbnail definida com sucesso!")
-        except Exception as e:
-            print(f"⚠️  Falha ao definir thumbnail: {e}")
+        # ── Upload da thumbnail ──────────────────────────────────────────────────
+        if video_id and os.path.exists(thumbnail_path):
+            print("🖼️  Enviando thumbnail personalizada...")
+            try:
+                youtube.thumbnails().set(
+                    videoId=video_id,
+                    media_body=MediaFileUpload(thumbnail_path, mimetype="image/jpeg"),
+                ).execute()
+                print("✅ Thumbnail definida com sucesso!")
+            except Exception as e:
+                print(f"⚠️  Falha ao definir thumbnail: {e}")
 
-    return video_id
+        return video_id
+
+    except HttpError as err:
+        if "uploadLimitExceeded" in str(err):
+            print("\n" + "!"*60)
+            print("⚠️ AVISO: LIMITE DIÁRIO DE UPLOADS DO YOUTUBE ATINGIDO (uploadLimitExceeded)")
+            print("   O canal JESUS VIVE atingiu a cota máxima de uploads permitida pelo YouTube para hoje.")
+            print("   Essa restrição é uma política padrão anti-spam do YouTube e se renova em 24h.")
+            print("   O pipeline está 100% configurado e pronto. O vídeo foi preservado nos artefatos.")
+            print("!"*60 + "\n")
+            return None
+        raise err
 
 
 if __name__ == "__main__":
